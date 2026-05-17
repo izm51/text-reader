@@ -126,6 +126,19 @@ a {
   background: transparent;
   padding: 8px 10px;
 }
+.btn--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+}
+.btn--icon:hover {
+  color: var(--fg);
+}
+.icon {
+  display: block;
+  flex-shrink: 0;
+}
 .btn--ghost:hover {
   background: var(--bg-elev-2);
 }
@@ -426,6 +439,9 @@ a {
   color: var(--fg);
   font-size: 16px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .player__btn:hover {
   background: var(--bg-elev-2);

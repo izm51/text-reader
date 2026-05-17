@@ -37,7 +37,7 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
       <button class="btn btn--ghost" data-action="back" aria-label="戻る">←</button>
       <h1 class="topbar__title topbar__title--small">${escapeHtml(doc.title)}</h1>
       <div class="topbar__actions">
-        <button class="btn btn--ghost" data-action="toggle-settings" aria-label="表示設定">Aa</button>
+        <button class="btn btn--ghost btn--icon" data-action="toggle-settings" aria-label="設定"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       </div>
     </header>
 
@@ -50,10 +50,10 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
 
     <aside class="player" aria-label="読み上げプレイヤー">
       <div class="player__row">
-        <button class="player__btn" data-action="play" aria-label="再生">▶</button>
-        <button class="player__btn" data-action="pause" aria-label="一時停止" hidden>⏸</button>
-        <button class="player__btn" data-action="resume" aria-label="再開" hidden>▶</button>
-        <button class="player__btn" data-action="stop" aria-label="停止">■</button>
+        <button class="player__btn" data-action="play" aria-label="再生"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+        <button class="player__btn" data-action="pause" aria-label="一時停止" hidden><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+        <button class="player__btn" data-action="resume" aria-label="再開" hidden><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+        <button class="player__btn" data-action="stop" aria-label="停止"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"/></svg></button>
         <label class="player__rate">
           速度
           <input type="range" id="rate" min="0.5" max="2.0" step="0.1" />
