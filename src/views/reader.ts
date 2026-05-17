@@ -62,7 +62,10 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
           <input type="range" id="rate" min="0.5" max="2.0" step="0.1" />
           <span id="rate-val"></span>
         </label>
-        <select id="voice" class="player__voice" aria-label="音声"></select>
+        <label class="player__voice-label">
+          音声:
+          <select id="voice" class="player__voice" aria-label="音声"></select>
+        </label>
       </div>
       <div class="player__status" id="player-status" aria-live="polite"></div>
     </aside>
