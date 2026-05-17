@@ -18,9 +18,15 @@ function fmtSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
+let searchQuery = '';
+let searchOpen = false;
+let cachedDocs: DocRecord[] = [];
+
 export async function renderLibrary(root: HTMLElement): Promise<void> {
   const docs = await listDocuments();
+  cachedDocs = docs;
   const estimate = await getStorageEstimate();
+  const filtered = filterDocs(docs, searchQuery);
 
   root.innerHTML = `
     <header class="topbar">
@@ -49,10 +55,19 @@ export async function renderLibrary(root: HTMLElement): Promise<void> {
       </section>
 
       <section class="docs" aria-label="ライブラリ">
-        <h2 class="docs__heading">ライブラリ <span class="docs__count">${docs.length}</span></h2>
+        <div class="docs__header">
+          <h2 class="docs__heading">ライブラリ <span class="docs__count">${docs.length}</span></h2>
+          <button class="btn btn--ghost btn--icon docs__search-toggle" data-action="toggle-search" aria-label="検索" aria-expanded="${searchOpen}"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
+        </div>
+        <div class="docs__search" ${searchOpen ? '' : 'hidden'}>
+          <input type="search" id="search-input" class="docs__search-input" placeholder="タイトルで絞り込み" value="${escapeHtml(searchQuery)}" />
+          <button class="docs__search-clear" data-action="clear-search" aria-label="クリア" ${searchQuery ? '' : 'hidden'}>✕</button>
+        </div>
         ${docs.length === 0
           ? `<p class="docs__empty">まだドキュメントがありません。txt / md ファイルを追加してください。</p>`
-          : `<ul class="docs__list">${docs.map(renderItem).join('')}</ul>`}
+          : filtered.length === 0
+            ? `<p class="docs__empty">該当するドキュメントがありません。</p>`
+            : `<ul class="docs__list">${filtered.map(renderItem).join('')}</ul>`}
       </section>
 
       ${renderStorageInfo(estimate)}
@@ -60,6 +75,12 @@ export async function renderLibrary(root: HTMLElement): Promise<void> {
   `;
 
   attachLibraryEvents(root);
+}
+
+function filterDocs(docs: DocRecord[], query: string): DocRecord[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return docs;
+  return docs.filter((d) => d.title.toLowerCase().includes(q));
 }
 
 function renderItem(d: DocRecord): string {
@@ -152,8 +173,52 @@ function attachLibraryEvents(root: HTMLElement) {
       navigate(`?doc=${newId}`);
     } else if (action === 'open-settings') {
       navigate('?view=settings');
+    } else if (action === 'toggle-search') {
+      searchOpen = !searchOpen;
+      if (!searchOpen) {
+        searchQuery = '';
+      }
+      await renderLibrary(root);
+      if (searchOpen) {
+        root.querySelector<HTMLInputElement>('#search-input')?.focus();
+      }
+    } else if (action === 'clear-search') {
+      searchQuery = '';
+      await renderLibrary(root);
+      root.querySelector<HTMLInputElement>('#search-input')?.focus();
     }
   });
+
+  const searchInput = root.querySelector<HTMLInputElement>('#search-input');
+  searchInput?.addEventListener('input', () => {
+    searchQuery = searchInput.value;
+    updateFilteredList(root);
+  });
+  searchInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      searchQuery = '';
+      searchOpen = false;
+      renderLibrary(root);
+    }
+  });
+}
+
+function updateFilteredList(root: HTMLElement) {
+  const section = root.querySelector<HTMLElement>('.docs');
+  if (!section) return;
+  const clearBtn = section.querySelector<HTMLButtonElement>('.docs__search-clear');
+  if (clearBtn) clearBtn.hidden = !searchQuery;
+
+  section.querySelector('.docs__list')?.remove();
+  section.querySelector('.docs__empty')?.remove();
+
+  const filtered = filterDocs(cachedDocs, searchQuery);
+  const html = cachedDocs.length === 0
+    ? `<p class="docs__empty">まだドキュメントがありません。txt / md ファイルを追加してください。</p>`
+    : filtered.length === 0
+      ? `<p class="docs__empty">該当するドキュメントがありません。</p>`
+      : `<ul class="docs__list">${filtered.map(renderItem).join('')}</ul>`;
+  section.insertAdjacentHTML('beforeend', html);
 }
 
 function escapeHtml(s: string): string {
@@ -164,3 +229,4 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
