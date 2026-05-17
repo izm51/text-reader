@@ -1,13 +1,19 @@
 import { registerSW } from 'virtual:pwa-register';
 import { renderApp } from './app';
+import { initLaunchHandler } from './lib/launch';
 import './styles/main.css';
 
 registerSW({ immediate: true });
 
-void renderApp(document.getElementById('app')!);
+const root = document.getElementById('app')!;
+void renderApp(root);
 
 window.addEventListener('popstate', () => {
-  void renderApp(document.getElementById('app')!);
+  void renderApp(root);
+});
+
+initLaunchHandler(() => {
+  void renderApp(root);
 });
 
 if ('storage' in navigator && 'persist' in navigator.storage) {
