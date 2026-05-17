@@ -10,7 +10,10 @@ const root = document.getElementById('app')!;
 void renderApp(root);
 
 window.addEventListener('popstate', () => {
-  getTTS().stop();
+  const params = new URLSearchParams(location.search);
+  if (!params.get('doc') && !params.get('view')) {
+    getTTS().stop();
+  }
   void renderApp(root);
 });
 
