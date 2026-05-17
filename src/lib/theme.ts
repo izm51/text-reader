@@ -24,7 +24,7 @@ export interface ReadingPrefs {
 }
 
 const READING_KEY = 'reading-prefs';
-const DEFAULT_READING: ReadingPrefs = {
+export const DEFAULT_READING: ReadingPrefs = {
   fontSize: 18,
   lineHeight: 1.9,
   maxWidth: 720,

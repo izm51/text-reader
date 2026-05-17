@@ -1,6 +1,7 @@
 import {
   applyReadingPrefs,
   applyTheme,
+  DEFAULT_READING,
   getReadingPrefs,
   getTheme,
   setReadingPrefs,
@@ -14,7 +15,7 @@ export function renderSettings(root: HTMLElement): void {
 
   root.innerHTML = `
     <header class="topbar">
-      <button class="btn btn--ghost" data-action="back" aria-label="戻る">←</button>
+      <button class="btn btn--ghost btn--icon" data-action="back" aria-label="戻る"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
       <h1 class="topbar__title">設定</h1>
     </header>
 
@@ -42,6 +43,9 @@ export function renderSettings(root: HTMLElement): void {
           最大幅 <span id="mw-val">${prefs.maxWidth}px</span>
           <input type="range" id="mw" min="480" max="960" step="20" value="${prefs.maxWidth}" />
         </label>
+        <div class="settings__actions">
+          <button class="btn" type="button" data-action="reset-reading">デフォルトに戻す</button>
+        </div>
       </section>
 
       <section class="settings__group">
@@ -53,14 +57,6 @@ export function renderSettings(root: HTMLElement): void {
       </section>
     </main>
   `;
-
-  root.addEventListener('click', (e) => {
-    const action = (e.target as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action;
-    if (action === 'back') {
-      if (history.length > 1) history.back();
-      else navigate('');
-    }
-  });
 
   root.querySelectorAll<HTMLInputElement>('input[name="theme"]').forEach((el) => {
     el.addEventListener('change', () => {
@@ -90,4 +86,17 @@ export function renderSettings(root: HTMLElement): void {
   fs.addEventListener('input', update);
   lh.addEventListener('input', update);
   mw.addEventListener('input', update);
+
+  root.addEventListener('click', (e) => {
+    const action = (e.target as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action;
+    if (action === 'back') {
+      if (history.length > 1) history.back();
+      else navigate('');
+    } else if (action === 'reset-reading') {
+      fs.value = String(DEFAULT_READING.fontSize);
+      lh.value = String(DEFAULT_READING.lineHeight);
+      mw.value = String(DEFAULT_READING.maxWidth);
+      update();
+    }
+  });
 }
