@@ -1,6 +1,6 @@
 import { getDocument } from '../lib/db';
 import { setArticleMeta } from '../lib/meta';
-import { extractPlainText, renderToHtml } from '../lib/parser';
+import { renderToHtml } from '../lib/parser';
 import { TTSController } from '../lib/tts';
 import { navigate } from '../router';
 
@@ -10,6 +10,8 @@ function getTTS(): TTSController {
   if (!tts) tts = new TTSController();
   return tts;
 }
+
+const TTS_BLOCK_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, li, blockquote, pre';
 
 export async function renderReader(root: HTMLElement, id: number): Promise<void> {
   const doc = await getDocument(id);
@@ -62,7 +64,10 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
           <input type="range" id="rate" min="0.5" max="2.0" step="0.1" />
           <span id="rate-val"></span>
         </label>
-        <select id="voice" class="player__voice" aria-label="音声"></select>
+        <label class="player__voice-label">
+          音声:
+          <select id="voice" class="player__voice" aria-label="音声"></select>
+        </label>
       </div>
       <div class="player__status" id="player-status" aria-live="polite"></div>
     </aside>
@@ -83,6 +88,25 @@ function bindBack(root: HTMLElement) {
   });
 }
 
+function tagBlocks(article: HTMLElement): { blocks: HTMLElement[]; chunks: string[] } {
+  const blocks: HTMLElement[] = [];
+  const chunks: string[] = [];
+  const candidates = article.querySelectorAll<HTMLElement>(TTS_BLOCK_SELECTOR);
+  candidates.forEach((el) => {
+    if (el.closest('pre') && el.tagName !== 'PRE') return;
+    if (el.tagName === 'LI' && el.querySelector('ul, ol')) return;
+    const text = (el.textContent || '').trim();
+    if (!text) return;
+    const idx = blocks.length;
+    el.setAttribute('data-tts-index', String(idx));
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    blocks.push(el);
+    chunks.push(text);
+  });
+  return { blocks, chunks };
+}
+
 function bindReaderEvents(root: HTMLElement, _id: number) {
   const controller = getTTS();
   const article = root.querySelector('.article__body') as HTMLElement;
@@ -93,6 +117,8 @@ function bindReaderEvents(root: HTMLElement, _id: number) {
   const playBtn = root.querySelector<HTMLButtonElement>('[data-action="play"]')!;
   const pauseBtn = root.querySelector<HTMLButtonElement>('[data-action="pause"]')!;
   const resumeBtn = root.querySelector<HTMLButtonElement>('[data-action="resume"]')!;
+
+  const { blocks, chunks } = tagBlocks(article);
 
   rate.value = String(controller.currentState.rate);
   rateVal.textContent = `${controller.currentState.rate.toFixed(1)}x`;
@@ -118,12 +144,36 @@ function bindReaderEvents(root: HTMLElement, _id: number) {
     speechSynthesis.addEventListener?.('voiceschanged', refreshVoices);
   }
 
+  let lastActive: HTMLElement | null = null;
+  function setActive(idx: number, visible: boolean) {
+    if (lastActive) lastActive.classList.remove('tts-active');
+    if (!visible) {
+      lastActive = null;
+      return;
+    }
+    const el = blocks[idx];
+    if (!el) {
+      lastActive = null;
+      return;
+    }
+    el.classList.add('tts-active');
+    lastActive = el;
+    const rect = el.getBoundingClientRect();
+    const outOfView = rect.top < 60 || rect.bottom > window.innerHeight - 120;
+    if (outOfView) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
   controller.subscribe((s) => {
     statusEl.textContent =
-      s.status === 'playing' ? '再生中…' : s.status === 'paused' ? '一時停止中' : '';
+      s.status === 'playing'
+        ? `再生中… (${s.cursor + 1}/${s.total})`
+        : s.status === 'paused'
+          ? `一時停止 (${s.cursor + 1}/${s.total})`
+          : '';
     playBtn.hidden = s.status !== 'idle';
     pauseBtn.hidden = s.status !== 'playing';
     resumeBtn.hidden = s.status !== 'paused';
+    setActive(s.cursor, s.status !== 'idle');
   });
 
   rate.addEventListener('input', () => {
@@ -136,11 +186,30 @@ function bindReaderEvents(root: HTMLElement, _id: number) {
     controller.setVoice(voiceSel.value || null);
   });
 
+  article.addEventListener('click', (e) => {
+    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-tts-index]');
+    if (!target) return;
+    const idx = Number(target.dataset.ttsIndex);
+    if (Number.isNaN(idx)) return;
+    controller.speak(chunks, idx);
+  });
+
+  article.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-tts-index]');
+    if (!target) return;
+    e.preventDefault();
+    const idx = Number(target.dataset.ttsIndex);
+    if (Number.isNaN(idx)) return;
+    controller.speak(chunks, idx);
+  });
+
   root.addEventListener('click', (e) => {
     const action = (e.target as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action;
     if (action === 'play') {
-      const text = extractPlainText(article.innerHTML);
-      controller.speak(text);
+      const startAt =
+        controller.currentState.status === 'idle' ? 0 : controller.currentState.cursor;
+      controller.speak(chunks, startAt);
     } else if (action === 'pause') {
       controller.pause();
     } else if (action === 'resume') {

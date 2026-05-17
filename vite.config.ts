@@ -62,6 +62,15 @@ export default defineConfig({
             ],
           },
         },
+        file_handlers: [
+          {
+            action: `${BASE}`,
+            accept: {
+              'text/plain': ['.txt'],
+              'text/markdown': ['.md', '.markdown'],
+            },
+          },
+        ],
         shortcuts: [
           {
             name: 'ライブラリを開く',

@@ -1,5 +1,7 @@
 export interface TTSState {
   status: 'idle' | 'playing' | 'paused';
+  cursor: number;
+  total: number;
   rate: number;
   pitch: number;
   voiceURI: string | null;
@@ -7,37 +9,19 @@ export interface TTSState {
 
 export type TTSListener = (state: TTSState) => void;
 
-const CHUNK_LIMIT = 200;
-
-function splitText(text: string): string[] {
-  const cleaned = text.replace(/\s+/g, ' ').trim();
-  if (!cleaned) return [];
-  const sentences = cleaned.match(/[^。！？!?.\n]+[。！？!?.\n]?/g) ?? [cleaned];
-  const chunks: string[] = [];
-  let buf = '';
-  for (const s of sentences) {
-    if ((buf + s).length > CHUNK_LIMIT) {
-      if (buf) chunks.push(buf);
-      buf = s;
-    } else {
-      buf += s;
-    }
-  }
-  if (buf) chunks.push(buf);
-  return chunks;
-}
-
 export class TTSController {
   private state: TTSState = {
     status: 'idle',
+    cursor: 0,
+    total: 0,
     rate: 1.0,
     pitch: 1.0,
     voiceURI: null,
   };
 
   private chunks: string[] = [];
-  private cursor = 0;
   private listeners = new Set<TTSListener>();
+  private generation = 0;
 
   constructor() {
     this.loadPrefs();
@@ -87,24 +71,34 @@ export class TTSController {
     this.notify();
   }
 
-  speak(text: string) {
+  speak(chunks: string[], startAt = 0) {
     if (!this.isSupported()) return;
-    this.stop();
-    this.chunks = splitText(text);
-    this.cursor = 0;
-    if (this.chunks.length === 0) return;
-    this.state.status = 'playing';
-    this.notify();
-    this.speakNext();
-  }
-
-  private speakNext() {
-    if (this.cursor >= this.chunks.length) {
+    this.generation += 1;
+    speechSynthesis.cancel();
+    this.chunks = chunks.filter((c) => c.trim().length > 0);
+    this.state.total = this.chunks.length;
+    if (this.chunks.length === 0) {
       this.state.status = 'idle';
+      this.state.cursor = 0;
       this.notify();
       return;
     }
-    const u = new SpeechSynthesisUtterance(this.chunks[this.cursor]);
+    this.state.status = 'playing';
+    this.speakAt(Math.max(0, Math.min(startAt, this.chunks.length - 1)), this.generation);
+  }
+
+  private speakAt(idx: number, gen: number) {
+    if (gen !== this.generation) return;
+    if (idx >= this.chunks.length) {
+      this.state.status = 'idle';
+      this.state.cursor = 0;
+      this.notify();
+      return;
+    }
+    this.state.cursor = idx;
+    this.notify();
+
+    const u = new SpeechSynthesisUtterance(this.chunks[idx]);
     u.rate = this.state.rate;
     u.pitch = this.state.pitch;
     u.lang = 'ja-JP';
@@ -114,41 +108,61 @@ export class TTSController {
       voices.find((v) => v.lang.startsWith('ja')) ??
       voices[0];
     if (selected) u.voice = selected;
+
     u.onend = () => {
-      this.cursor += 1;
-      if (this.state.status === 'playing') this.speakNext();
+      if (gen !== this.generation) return;
+      if (this.state.status !== 'playing') return;
+      this.speakAt(idx + 1, gen);
     };
-    u.onerror = () => {
-      this.cursor += 1;
-      if (this.state.status === 'playing') this.speakNext();
+    u.onerror = (e) => {
+      if (gen !== this.generation) return;
+      if (e.error === 'canceled' || e.error === 'interrupted') return;
+      if (this.state.status !== 'playing') return;
+      this.speakAt(idx + 1, gen);
     };
     speechSynthesis.speak(u);
   }
 
   pause() {
     if (!this.isSupported()) return;
-    if (this.state.status === 'playing') {
-      speechSynthesis.pause();
-      this.state.status = 'paused';
-      this.notify();
-    }
+    if (this.state.status !== 'playing') return;
+    this.generation += 1;
+    this.state.status = 'paused';
+    speechSynthesis.cancel();
+    this.notify();
   }
 
   resume() {
     if (!this.isSupported()) return;
-    if (this.state.status === 'paused') {
-      speechSynthesis.resume();
+    if (this.state.status !== 'paused') return;
+    if (this.chunks.length === 0) return;
+    this.generation += 1;
+    this.state.status = 'playing';
+    this.speakAt(this.state.cursor, this.generation);
+  }
+
+  seekTo(idx: number) {
+    if (!this.isSupported()) return;
+    if (this.chunks.length === 0) return;
+    const clamped = Math.max(0, Math.min(idx, this.chunks.length - 1));
+    const wasPlaying = this.state.status !== 'idle';
+    this.generation += 1;
+    speechSynthesis.cancel();
+    if (wasPlaying) {
       this.state.status = 'playing';
+      this.speakAt(clamped, this.generation);
+    } else {
+      this.state.cursor = clamped;
       this.notify();
     }
   }
 
   stop() {
     if (!this.isSupported()) return;
-    speechSynthesis.cancel();
+    this.generation += 1;
     this.state.status = 'idle';
-    this.cursor = 0;
-    this.chunks = [];
+    this.state.cursor = 0;
+    speechSynthesis.cancel();
     this.notify();
   }
 
