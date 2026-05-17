@@ -87,12 +87,16 @@ export function renderSettings(root: HTMLElement): void {
   lh.addEventListener('input', update);
   mw.addEventListener('input', update);
 
+  const backBtn = root.querySelector<HTMLButtonElement>('[data-action="back"]');
+  backBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (history.length > 1) history.back();
+    else navigate('');
+  });
+
   root.addEventListener('click', (e) => {
     const action = (e.target as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action;
-    if (action === 'back') {
-      if (history.length > 1) history.back();
-      else navigate('');
-    } else if (action === 'reset-reading') {
+    if (action === 'reset-reading') {
       fs.value = String(DEFAULT_READING.fontSize);
       lh.value = String(DEFAULT_READING.lineHeight);
       mw.value = String(DEFAULT_READING.maxWidth);
