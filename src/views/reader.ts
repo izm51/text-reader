@@ -1,4 +1,5 @@
 import { getDocument } from '../lib/db';
+import { setArticleMeta } from '../lib/meta';
 import { renderToHtml } from '../lib/parser';
 import { TTSController } from '../lib/tts';
 import { navigate } from '../router';
@@ -29,6 +30,7 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
   }
 
   const html = renderToHtml(doc.format, doc.content);
+  setArticleMeta(doc.title);
 
   root.innerHTML = `
     <header class="topbar">
@@ -45,7 +47,7 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
     </div>
 
     <main class="reader">
-      <article class="article">
+      <article class="article" itemscope itemtype="https://schema.org/Article">
         <h1 class="article__title">${escapeHtml(doc.title)}</h1>
         <div class="article__body">${html}</div>
       </article>

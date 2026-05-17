@@ -1,5 +1,6 @@
 import { currentParams } from './router';
 import { initTheme, applyReadingPrefs } from './lib/theme';
+import { clearArticleMeta } from './lib/meta';
 import { renderLibrary } from './views/library';
 import { renderReader } from './views/reader';
 import { renderSettings } from './views/settings';
@@ -12,6 +13,8 @@ export async function renderApp(root: HTMLElement): Promise<void> {
     applyReadingPrefs();
     initialized = true;
   }
+
+  clearArticleMeta();
 
   const params = currentParams();
   const view = params.get('view');
