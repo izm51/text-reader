@@ -464,6 +464,9 @@ a {
   align-items: center;
   justify-content: center;
 }
+.player__btn[hidden] {
+  display: none;
+}
 .player__btn:hover {
   background: var(--bg-elev-2);
 }
