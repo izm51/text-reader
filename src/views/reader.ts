@@ -37,10 +37,7 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
       </div>
     </header>
 
-    <div class="hint" id="chrome-hint" hidden>
-      <p>💡 高品質な読み上げは Chromeの ⋮ メニュー →「このページを読み上げる」が利用できます。</p>
-      <button class="hint__close" data-action="dismiss-hint" aria-label="閉じる">✕</button>
-    </div>
+    <div class="hint" id="chrome-hint" hidden></div>
 
     <main class="reader">
       <article class="article">
@@ -147,21 +144,52 @@ function bindReaderEvents(root: HTMLElement, _id: number) {
       controller.stop();
     } else if (action === 'toggle-settings') {
       navigate('?view=settings');
+    } else if (action === 'open-in-browser') {
+      window.open(location.href, '_blank', 'noopener');
     } else if (action === 'dismiss-hint') {
       const hint = root.querySelector<HTMLElement>('#chrome-hint');
       if (hint) hint.hidden = true;
-      localStorage.setItem('chrome-hint-dismissed', '1');
+      const key = hint?.dataset.dismissKey ?? 'chrome-hint-dismissed';
+      localStorage.setItem(key, '1');
     }
   });
 }
 
+function isPwaDisplayMode(): boolean {
+  return (
+    matchMedia('(display-mode: standalone)').matches ||
+    matchMedia('(display-mode: minimal-ui)').matches ||
+    matchMedia('(display-mode: fullscreen)').matches ||
+    // iOS Safari legacy
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+
 function showChromeHintIfRelevant(root: HTMLElement) {
-  if (localStorage.getItem('chrome-hint-dismissed') === '1') return;
   const ua = navigator.userAgent;
   const isAndroidChrome = /Android/.test(ua) && /Chrome\//.test(ua) && !/EdgA|SamsungBrowser/.test(ua);
   if (!isAndroidChrome) return;
+
+  const isPwa = isPwaDisplayMode();
+  const dismissKey = isPwa ? 'chrome-hint-pwa-dismissed' : 'chrome-hint-dismissed';
+  if (localStorage.getItem(dismissKey) === '1') return;
+
   const hint = root.querySelector<HTMLElement>('#chrome-hint');
-  if (hint) hint.hidden = false;
+  if (!hint) return;
+  hint.dataset.dismissKey = dismissKey;
+  hint.innerHTML = isPwa
+    ? `
+      <p>💡 PWA からは Chrome の ⋮ メニューが表示されません。ブラウザで開くと「このページを読み上げる」が使えます。</p>
+      <div class="hint__actions">
+        <button class="btn btn--primary btn--sm" data-action="open-in-browser">ブラウザで開く</button>
+      </div>
+      <button class="hint__close" data-action="dismiss-hint" aria-label="閉じる">✕</button>
+    `
+    : `
+      <p>💡 高品質な読み上げは Chrome の ⋮ メニュー →「このページを読み上げる」が利用できます。</p>
+      <button class="hint__close" data-action="dismiss-hint" aria-label="閉じる">✕</button>
+    `;
+  hint.hidden = false;
 }
 
 function escapeHtml(s: string): string {

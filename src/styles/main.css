@@ -377,6 +377,11 @@ a {
   color: var(--fg-muted);
 }
 .hint p { margin: 0; }
+.hint__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
 .hint__close {
   position: absolute;
   top: 6px;
@@ -385,6 +390,11 @@ a {
   border: none;
   color: var(--fg-muted);
   cursor: pointer;
+}
+.btn--sm {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 6px;
 }
 
 .player {
