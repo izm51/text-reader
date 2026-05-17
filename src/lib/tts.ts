@@ -195,3 +195,10 @@ export class TTSController {
     }
   }
 }
+
+let sharedTTS: TTSController | null = null;
+
+export function getTTS(): TTSController {
+  if (!sharedTTS) sharedTTS = new TTSController();
+  return sharedTTS;
+}

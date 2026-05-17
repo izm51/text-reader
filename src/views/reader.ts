@@ -1,15 +1,8 @@
 import { getDocument, updateDocument } from '../lib/db';
 import { setArticleMeta } from '../lib/meta';
 import { renderToHtml } from '../lib/parser';
-import { TTSController } from '../lib/tts';
+import { getTTS } from '../lib/tts';
 import { navigate } from '../router';
-
-let tts: TTSController | null = null;
-
-function getTTS(): TTSController {
-  if (!tts) tts = new TTSController();
-  return tts;
-}
 
 const TTS_BLOCK_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, li, blockquote, pre';
 
