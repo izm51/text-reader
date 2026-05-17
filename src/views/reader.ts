@@ -1,4 +1,4 @@
-import { getDocument } from '../lib/db';
+import { getDocument, updateDocument } from '../lib/db';
 import { setArticleMeta } from '../lib/meta';
 import { renderToHtml } from '../lib/parser';
 import { TTSController } from '../lib/tts';
@@ -43,7 +43,7 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
 
     <main class="reader">
       <article class="article" itemscope itemtype="https://schema.org/Article">
-        <h1 class="article__title">${escapeHtml(doc.title)}</h1>
+        <h1 class="article__title" contenteditable="true" spellcheck="false" role="textbox" aria-label="タイトル (編集可能)">${escapeHtml(doc.title)}</h1>
         <div class="article__body">${html}</div>
       </article>
     </main>
@@ -69,7 +69,50 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
   `;
 
   bindBack(root);
+  bindTitleEdit(root, doc.id!, doc.title);
   bindReaderEvents(root, doc.id!);
+}
+
+function bindTitleEdit(root: HTMLElement, id: number, initialTitle: string) {
+  const titleEl = root.querySelector<HTMLElement>('.article__title');
+  const topbarTitle = root.querySelector<HTMLElement>('.topbar__title');
+  if (!titleEl) return;
+
+  let savedTitle = initialTitle;
+
+  titleEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      titleEl.blur();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      titleEl.textContent = savedTitle;
+      titleEl.blur();
+    }
+  });
+
+  titleEl.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData?.getData('text/plain') ?? '').replace(/[\r\n]+/g, ' ');
+    document.execCommand('insertText', false, text);
+  });
+
+  titleEl.addEventListener('blur', async () => {
+    const next = (titleEl.textContent ?? '').replace(/\s+/g, ' ').trim();
+    if (!next) {
+      titleEl.textContent = savedTitle;
+      return;
+    }
+    if (next === savedTitle) {
+      titleEl.textContent = savedTitle;
+      return;
+    }
+    titleEl.textContent = next;
+    savedTitle = next;
+    if (topbarTitle) topbarTitle.textContent = next;
+    setArticleMeta(next);
+    await updateDocument(id, { title: next });
+  });
 }
 
 function bindBack(root: HTMLElement) {
