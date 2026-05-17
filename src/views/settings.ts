@@ -1,6 +1,7 @@
 import {
   applyReadingPrefs,
   applyTheme,
+  DEFAULT_READING,
   getReadingPrefs,
   getTheme,
   setReadingPrefs,
@@ -42,6 +43,9 @@ export function renderSettings(root: HTMLElement): void {
           最大幅 <span id="mw-val">${prefs.maxWidth}px</span>
           <input type="range" id="mw" min="480" max="960" step="20" value="${prefs.maxWidth}" />
         </label>
+        <div class="settings__actions">
+          <button class="btn" type="button" data-action="reset-reading">デフォルトに戻す</button>
+        </div>
       </section>
 
       <section class="settings__group">
@@ -53,13 +57,6 @@ export function renderSettings(root: HTMLElement): void {
       </section>
     </main>
   `;
-
-  root.addEventListener('click', (e) => {
-    const action = (e.target as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action;
-    if (action === 'back') {
-      navigate('');
-    }
-  });
 
   root.querySelectorAll<HTMLInputElement>('input[name="theme"]').forEach((el) => {
     el.addEventListener('change', () => {
@@ -89,4 +86,16 @@ export function renderSettings(root: HTMLElement): void {
   fs.addEventListener('input', update);
   lh.addEventListener('input', update);
   mw.addEventListener('input', update);
+
+  root.addEventListener('click', (e) => {
+    const action = (e.target as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action;
+    if (action === 'back') {
+      navigate('');
+    } else if (action === 'reset-reading') {
+      fs.value = String(DEFAULT_READING.fontSize);
+      lh.value = String(DEFAULT_READING.lineHeight);
+      mw.value = String(DEFAULT_READING.maxWidth);
+      update();
+    }
+  });
 }
