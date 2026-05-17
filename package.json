@@ -1,0 +1,24 @@
+{
+  "name": "text-reader",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "idb": "^8.0.0",
+    "markdown-it": "^14.1.0"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
+    "typescript": "~5.6.3",
+    "vite": "^6.0.7",
+    "vite-plugin-pwa": "^0.21.1",
+    "workbox-precaching": "^7.3.0",
+    "workbox-window": "^7.3.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
