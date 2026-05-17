@@ -14,7 +14,7 @@ export function renderSettings(root: HTMLElement): void {
 
   root.innerHTML = `
     <header class="topbar">
-      <button class="btn btn--ghost" data-action="back" aria-label="戻る">←</button>
+      <button class="btn btn--ghost btn--icon" data-action="back" aria-label="ライブラリへ戻る"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
       <h1 class="topbar__title">設定</h1>
     </header>
 
@@ -57,8 +57,7 @@ export function renderSettings(root: HTMLElement): void {
   root.addEventListener('click', (e) => {
     const action = (e.target as HTMLElement).closest<HTMLElement>('[data-action]')?.dataset.action;
     if (action === 'back') {
-      if (history.length > 1) history.back();
-      else navigate('');
+      navigate('');
     }
   });
 
