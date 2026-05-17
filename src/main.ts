@@ -9,11 +9,16 @@ registerSW({ immediate: true });
 const root = document.getElementById('app')!;
 void renderApp(root);
 
+let prevOnReader = !!new URLSearchParams(location.search).get('doc');
+
 window.addEventListener('popstate', () => {
   const params = new URLSearchParams(location.search);
-  if (!params.get('doc') && !params.get('view')) {
+  const onReader = !!params.get('doc');
+  const onTop = !onReader && !params.get('view');
+  if (prevOnReader && onTop) {
     getTTS().stop();
   }
+  prevOnReader = onReader;
   void renderApp(root);
 });
 
