@@ -55,11 +55,3 @@ export function renderToHtml(format: DocFormat, content: string): string {
   return format === 'md' ? renderMdToHtml(content) : renderTxtToHtml(content);
 }
 
-export function extractPlainText(html: string): string {
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  tmp.querySelectorAll('script, style, code, pre').forEach((el) => {
-    el.textContent = el.textContent ? `\n${el.textContent}\n` : '';
-  });
-  return (tmp.textContent || '').replace(/\s+\n/g, '\n').trim();
-}
