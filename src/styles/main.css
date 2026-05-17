@@ -280,6 +280,11 @@ a {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
 }
+.docs__search-input::-webkit-search-cancel-button,
+.docs__search-input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
 .docs__search-clear {
   position: absolute;
   top: 50%;
