@@ -162,6 +162,7 @@ a {
   color: var(--fg-muted);
   font-size: 12px;
   line-height: 1.6;
+  text-align: center;
 }
 
 .upload {
