@@ -157,6 +157,12 @@ a {
   margin: 0 auto;
   padding: 20px 16px 80px;
 }
+.library__intro {
+  margin: 0 0 16px;
+  color: var(--fg-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
 
 .upload {
   margin-bottom: 24px;

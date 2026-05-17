@@ -30,6 +30,7 @@ export async function renderLibrary(root: HTMLElement): Promise<void> {
       </div>
     </header>
     <main class="library">
+      <p class="library__intro">登録したテキストを、音声読み上げで聞くことができます。</p>
       <section class="upload" aria-label="ファイル取り込み">
         <label class="upload__drop" id="drop-zone">
           <input type="file" id="file-input" accept=".txt,.md,.markdown,text/plain,text/markdown" multiple hidden />
