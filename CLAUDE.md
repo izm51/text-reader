@@ -9,8 +9,6 @@ pnpm dev      # 開発サーバー
 pnpm build    # tsc -b && vite build
 ```
 
-test / lint スクリプトは未定義。
-
 ## 注意点
 
 - IndexedDB スキーマは `src/lib/db.ts` と `src/sw.ts` で二重定義。SW から `db.ts` を import できないため。変更時は両方を同期し `DB_VERSION` を上げる。
