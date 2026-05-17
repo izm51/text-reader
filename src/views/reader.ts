@@ -39,11 +39,6 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
       </div>
     </header>
 
-    <div class="hint" id="chrome-hint" hidden>
-      <p>💡 高品質な読み上げは Chromeの ⋮ メニュー →「このページを読み上げる」が利用できます。</p>
-      <button class="hint__close" data-action="dismiss-hint" aria-label="閉じる">✕</button>
-    </div>
-
     <main class="reader">
       <article class="article">
         <h1 class="article__title">${escapeHtml(doc.title)}</h1>
@@ -73,7 +68,6 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
 
   bindBack(root);
   bindReaderEvents(root, doc.id!);
-  showChromeHintIfRelevant(root);
 }
 
 function bindBack(root: HTMLElement) {
@@ -216,21 +210,8 @@ function bindReaderEvents(root: HTMLElement, _id: number) {
       controller.stop();
     } else if (action === 'toggle-settings') {
       navigate('?view=settings');
-    } else if (action === 'dismiss-hint') {
-      const hint = root.querySelector<HTMLElement>('#chrome-hint');
-      if (hint) hint.hidden = true;
-      localStorage.setItem('chrome-hint-dismissed', '1');
     }
   });
-}
-
-function showChromeHintIfRelevant(root: HTMLElement) {
-  if (localStorage.getItem('chrome-hint-dismissed') === '1') return;
-  const ua = navigator.userAgent;
-  const isAndroidChrome = /Android/.test(ua) && /Chrome\//.test(ua) && !/EdgA|SamsungBrowser/.test(ua);
-  if (!isAndroidChrome) return;
-  const hint = root.querySelector<HTMLElement>('#chrome-hint');
-  if (hint) hint.hidden = false;
 }
 
 function escapeHtml(s: string): string {

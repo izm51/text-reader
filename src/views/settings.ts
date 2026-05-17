@@ -47,7 +47,6 @@ export function renderSettings(root: HTMLElement): void {
       <section class="settings__group">
         <h2>使い方</h2>
         <ul class="settings__notes">
-          <li>Android Chrome のメニュー (⋮) →「このページを読み上げる」で純正の高品質読み上げが使えます。</li>
           <li>ホーム画面に追加すると、他アプリの共有メニューから txt / md を直接取り込めます。</li>
           <li>ファイルはブラウザの IndexedDB に保存されます (永続化を要求しますが、長期未使用や端末側クリーンアップで消える可能性があります)。</li>
         </ul>
