@@ -326,6 +326,7 @@ a {
 }
 .doc__open {
   flex: 1;
+  min-width: 0;
   text-align: left;
   border: none;
   background: transparent;
@@ -361,6 +362,7 @@ a {
   color: var(--fg-muted);
   padding: 0 14px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 .doc__delete:hover {
   background: var(--bg-elev-2);
