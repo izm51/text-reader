@@ -216,6 +216,11 @@ function bindReaderEvents(root: HTMLElement, _id: number) {
   });
 
   article.addEventListener('click', (e) => {
+    const link = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href]');
+    if (link) {
+      handleArticleLinkClick(article, link, e);
+      return;
+    }
     const target = (e.target as HTMLElement).closest<HTMLElement>('[data-tts-index]');
     if (!target) return;
     const idx = Number(target.dataset.ttsIndex);
@@ -225,6 +230,7 @@ function bindReaderEvents(root: HTMLElement, _id: number) {
 
   article.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
+    if ((e.target as HTMLElement).closest('a[href]')) return;
     const target = (e.target as HTMLElement).closest<HTMLElement>('[data-tts-index]');
     if (!target) return;
     e.preventDefault();
@@ -249,6 +255,21 @@ function bindReaderEvents(root: HTMLElement, _id: number) {
       navigate('?view=settings');
     }
   });
+}
+
+function handleArticleLinkClick(
+  article: HTMLElement,
+  link: HTMLAnchorElement,
+  e: MouseEvent,
+): void {
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const href = link.getAttribute('href') ?? '';
+  if (!href.startsWith('#')) return;
+  e.preventDefault();
+  const id = decodeURIComponent(href.slice(1));
+  if (!id) return;
+  const target = article.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`);
+  target?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 
 function escapeHtml(s: string): string {
