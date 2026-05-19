@@ -6,6 +6,10 @@ import './styles/main.css';
 
 registerSW({ immediate: true });
 
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual';
+}
+
 const root = document.getElementById('app')!;
 void renderApp(root);
 
@@ -19,7 +23,11 @@ window.addEventListener('popstate', () => {
     getTTS().stop();
   }
   prevOnReader = onReader;
-  void renderApp(root);
+  const savedY =
+    history.state && typeof history.state.scrollY === 'number' ? history.state.scrollY : 0;
+  void renderApp(root).then(() => {
+    window.scrollTo(0, savedY);
+  });
 });
 
 initLaunchHandler(() => {
