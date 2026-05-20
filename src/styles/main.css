@@ -368,6 +368,30 @@ a {
   background: var(--bg-elev-2);
   color: var(--danger);
 }
+.doc__star {
+  border: none;
+  background: transparent;
+  color: var(--fg-muted);
+  padding: 0 6px 0 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.doc__star:hover {
+  color: #d9a300;
+}
+.doc--starred .doc__star {
+  color: #f5b400;
+}
+
+.topbar__star.topbar__star--on {
+  color: #f5b400;
+}
+.topbar__star.topbar__star--on:hover {
+  color: #f5b400;
+}
 
 .storage {
   margin-top: 32px;
