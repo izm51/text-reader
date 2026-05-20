@@ -1,4 +1,4 @@
-import { deleteDocument, listDocuments, getStorageEstimate, type DocRecord } from '../lib/db';
+import { deleteDocument, listDocuments, setStarred, getStorageEstimate, type DocRecord } from '../lib/db';
 import { importFiles, importRawText } from '../lib/import';
 import { navigate } from '../router';
 
@@ -22,8 +22,17 @@ let searchQuery = '';
 let searchOpen = false;
 let cachedDocs: DocRecord[] = [];
 
+function sortStarredFirst(docs: DocRecord[]): DocRecord[] {
+  return [...docs].sort((a, b) => {
+    const sa = a.starred ? 1 : 0;
+    const sb = b.starred ? 1 : 0;
+    if (sa !== sb) return sb - sa;
+    return b.updatedAt - a.updatedAt;
+  });
+}
+
 export async function renderLibrary(root: HTMLElement): Promise<void> {
-  const docs = await listDocuments();
+  const docs = sortStarredFirst(await listDocuments());
   cachedDocs = docs;
   const estimate = await getStorageEstimate();
   const filtered = filterDocs(docs, searchQuery);
@@ -84,8 +93,10 @@ function filterDocs(docs: DocRecord[], query: string): DocRecord[] {
 }
 
 function renderItem(d: DocRecord): string {
+  const starred = !!d.starred;
   return `
-    <li class="doc" data-id="${d.id}">
+    <li class="doc${starred ? ' doc--starred' : ''}" data-id="${d.id}">
+      <button class="doc__star" data-action="toggle-star" data-id="${d.id}" aria-label="${starred ? 'スターを外す' : 'スターを付ける'}" aria-pressed="${starred}">${starIcon(starred)}</button>
       <button class="doc__open" data-action="open" data-id="${d.id}">
         <div class="doc__title">${escapeHtml(d.title)}</div>
         <div class="doc__meta">
@@ -97,6 +108,10 @@ function renderItem(d: DocRecord): string {
       <button class="doc__delete" data-action="delete" data-id="${d.id}" aria-label="削除">✕</button>
     </li>
   `;
+}
+
+function starIcon(filled: boolean): string {
+  return `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
 }
 
 function renderStorageInfo(estimate: StorageEstimate | null): string {
@@ -158,6 +173,12 @@ function attachLibraryEvents(root: HTMLElement) {
 
     if (action === 'open' && id !== null) {
       navigate(`?doc=${id}`);
+    } else if (action === 'toggle-star' && id !== null) {
+      const doc = cachedDocs.find((d) => d.id === id);
+      const next = !doc?.starred;
+      await setStarred(id, next);
+      if (doc) doc.starred = next;
+      await renderLibrary(root);
     } else if (action === 'delete' && id !== null) {
       if (confirm('このドキュメントを削除します。よろしいですか？')) {
         await deleteDocument(id);

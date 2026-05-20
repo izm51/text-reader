@@ -11,6 +11,7 @@ export interface DocRecord {
   updatedAt: number;
   byteSize: number;
   lastReadPosition?: number;
+  starred?: boolean;
 }
 
 interface TextReaderDB extends DBSchema {
@@ -85,6 +86,13 @@ export async function updateDocument(
     id,
     updatedAt: Date.now(),
   });
+}
+
+export async function setStarred(id: number, starred: boolean): Promise<void> {
+  const db = await getDB();
+  const cur = await db.get('documents', id);
+  if (!cur) return;
+  await db.put('documents', { ...cur, starred, id });
 }
 
 export async function deleteDocument(id: number): Promise<void> {
