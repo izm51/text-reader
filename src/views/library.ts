@@ -22,17 +22,8 @@ let searchQuery = '';
 let searchOpen = false;
 let cachedDocs: DocRecord[] = [];
 
-function sortStarredFirst(docs: DocRecord[]): DocRecord[] {
-  return [...docs].sort((a, b) => {
-    const sa = a.starred ? 1 : 0;
-    const sb = b.starred ? 1 : 0;
-    if (sa !== sb) return sb - sa;
-    return b.updatedAt - a.updatedAt;
-  });
-}
-
 export async function renderLibrary(root: HTMLElement): Promise<void> {
-  const docs = sortStarredFirst(await listDocuments());
+  const docs = await listDocuments();
   cachedDocs = docs;
   const estimate = await getStorageEstimate();
   const filtered = filterDocs(docs, searchQuery);
@@ -178,7 +169,14 @@ function attachLibraryEvents(root: HTMLElement) {
       const next = !doc?.starred;
       await setStarred(id, next);
       if (doc) doc.starred = next;
-      await renderLibrary(root);
+      const li = root.querySelector<HTMLElement>(`.doc[data-id="${id}"]`);
+      const btn = li?.querySelector<HTMLButtonElement>('.doc__star');
+      if (li && btn) {
+        li.classList.toggle('doc--starred', next);
+        btn.setAttribute('aria-pressed', String(next));
+        btn.setAttribute('aria-label', next ? 'スターを外す' : 'スターを付ける');
+        btn.innerHTML = starIcon(next);
+      }
     } else if (action === 'delete' && id !== null) {
       if (confirm('このドキュメントを削除します。よろしいですか？')) {
         await deleteDocument(id);
