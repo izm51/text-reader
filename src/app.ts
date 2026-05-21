@@ -1,6 +1,7 @@
 import { currentParams } from './router';
 import { initTheme, applyReadingPrefs } from './lib/theme';
 import { clearArticleMeta } from './lib/meta';
+import { renderFavorites } from './views/favorites';
 import { renderLibrary } from './views/library';
 import { renderReader } from './views/reader';
 import { renderSettings } from './views/settings';
@@ -22,6 +23,11 @@ export async function renderApp(root: HTMLElement): Promise<void> {
 
   if (view === 'settings') {
     renderSettings(root);
+    return;
+  }
+
+  if (view === 'favorites') {
+    await renderFavorites(root);
     return;
   }
 

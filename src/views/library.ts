@@ -58,6 +58,7 @@ export async function renderLibrary(root: HTMLElement): Promise<void> {
         <div class="docs__header">
           <h2 class="docs__heading">ライブラリ <span class="docs__count">${docs.length}</span></h2>
           <button class="btn btn--ghost btn--icon docs__search-toggle" data-action="toggle-search" aria-label="検索" aria-expanded="${searchOpen}"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
+          <button class="btn btn--ghost btn--icon" data-action="open-favorites" aria-label="お気に入り"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
         </div>
         <div class="docs__search" ${searchOpen ? '' : 'hidden'}>
           <input type="search" id="search-input" class="docs__search-input" placeholder="タイトルで絞り込み" value="${escapeHtml(searchQuery)}" />
@@ -192,6 +193,8 @@ function attachLibraryEvents(root: HTMLElement) {
       navigate(`?doc=${newId}`);
     } else if (action === 'open-settings') {
       navigate('?view=settings');
+    } else if (action === 'open-favorites') {
+      navigate('?view=favorites');
     } else if (action === 'toggle-search') {
       searchOpen = !searchOpen;
       if (!searchOpen) {

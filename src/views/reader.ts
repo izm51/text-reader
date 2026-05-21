@@ -167,6 +167,7 @@ function bindReaderEvents(root: HTMLElement, id: number, initialSaved: string[])
 
   const { blocks, chunks } = tagBlocks(article);
   bindParagraphLongPress(article, chunks, initialSaved, id);
+  scrollToTargetParagraph(blocks, chunks);
 
   rate.value = String(controller.currentState.rate);
   rateVal.textContent = `${controller.currentState.rate.toFixed(1)}x`;
@@ -273,6 +274,23 @@ function bindReaderEvents(root: HTMLElement, id: number, initialSaved: string[])
     } else if (action === 'toggle-settings') {
       navigate('?view=settings');
     }
+  });
+}
+
+const TARGET_PARAGRAPH_KEY = 'text-reader:target-paragraph';
+
+function scrollToTargetParagraph(blocks: HTMLElement[], chunks: string[]): void {
+  const target = sessionStorage.getItem(TARGET_PARAGRAPH_KEY);
+  if (!target) return;
+  sessionStorage.removeItem(TARGET_PARAGRAPH_KEY);
+  const idx = chunks.indexOf(target);
+  if (idx < 0) return;
+  const el = blocks[idx];
+  if (!el) return;
+  requestAnimationFrame(() => {
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.add('paragraph-flash');
+    window.setTimeout(() => el.classList.remove('paragraph-flash'), 1800);
   });
 }
 
