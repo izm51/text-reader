@@ -12,6 +12,7 @@ export interface DocRecord {
   byteSize: number;
   lastReadPosition?: number;
   starred?: boolean;
+  savedParagraphs?: string[];
 }
 
 interface TextReaderDB extends DBSchema {

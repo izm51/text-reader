@@ -65,7 +65,7 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
   bindBack(root);
   bindTitleEdit(root, doc.id!, doc.title);
   bindStarToggle(root, doc.id!, !!doc.starred);
-  bindReaderEvents(root, doc.id!);
+  bindReaderEvents(root, doc.id!, doc.savedParagraphs ?? []);
 }
 
 function bindStarToggle(root: HTMLElement, id: number, initial: boolean) {
@@ -154,7 +154,7 @@ function tagBlocks(article: HTMLElement): { blocks: HTMLElement[]; chunks: strin
   return { blocks, chunks };
 }
 
-function bindReaderEvents(root: HTMLElement, _id: number) {
+function bindReaderEvents(root: HTMLElement, id: number, initialSaved: string[]) {
   const controller = getTTS();
   const article = root.querySelector('.article__body') as HTMLElement;
   const rate = root.querySelector<HTMLInputElement>('#rate')!;
@@ -166,6 +166,7 @@ function bindReaderEvents(root: HTMLElement, _id: number) {
   const resumeBtn = root.querySelector<HTMLButtonElement>('[data-action="resume"]')!;
 
   const { blocks, chunks } = tagBlocks(article);
+  bindParagraphLongPress(article, chunks, initialSaved, id);
 
   rate.value = String(controller.currentState.rate);
   rateVal.textContent = `${controller.currentState.rate.toFixed(1)}x`;
@@ -273,6 +274,137 @@ function bindReaderEvents(root: HTMLElement, _id: number) {
       navigate('?view=settings');
     }
   });
+}
+
+const SAVE_ICON_FILLED = `<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
+const SAVE_ICON_OUTLINE = `<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
+const COPY_ICON = `<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+
+function bindParagraphLongPress(
+  article: HTMLElement,
+  chunks: string[],
+  initialSaved: string[],
+  docId: number,
+): void {
+  const LONG_PRESS_MS = 500;
+  const MOVE_THRESHOLD = 10;
+
+  const saved = new Set(initialSaved);
+  let timer: number | null = null;
+  let startX = 0;
+  let startY = 0;
+  let suppressNextClick = false;
+  let currentMenu: HTMLElement | null = null;
+
+  const clearTimer = (): void => {
+    if (timer !== null) {
+      window.clearTimeout(timer);
+      timer = null;
+    }
+  };
+
+  const closeMenu = (): void => {
+    if (currentMenu) {
+      currentMenu.remove();
+      currentMenu = null;
+    }
+  };
+
+  const persistSaved = async (): Promise<void> => {
+    await updateDocument(docId, { savedParagraphs: Array.from(saved) });
+  };
+
+  const showMenu = (target: HTMLElement, text: string): void => {
+    closeMenu();
+    const isSaved = saved.has(text);
+    const menu = document.createElement('div');
+    menu.className = 'para-menu';
+    menu.setAttribute('role', 'toolbar');
+    menu.setAttribute('aria-label', '段落メニュー');
+    menu.innerHTML = `
+      <button type="button" class="para-menu__btn${isSaved ? ' para-menu__btn--active' : ''}" data-para-action="save" aria-label="${isSaved ? '保存を解除' : '保存'}" aria-pressed="${isSaved}">${isSaved ? SAVE_ICON_FILLED : SAVE_ICON_OUTLINE}</button>
+      <button type="button" class="para-menu__btn" data-para-action="copy" aria-label="コピー">${COPY_ICON}</button>
+    `;
+    menu.style.top = `${target.offsetTop + target.offsetHeight + 4}px`;
+    article.appendChild(menu);
+    currentMenu = menu;
+
+    menu.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+    });
+
+    menu.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-para-action]');
+      if (!btn) return;
+      const action = btn.dataset.paraAction;
+      if (action === 'copy') {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          /* ignore */
+        }
+        closeMenu();
+      } else if (action === 'save') {
+        if (saved.has(text)) saved.delete(text);
+        else saved.add(text);
+        await persistSaved();
+        closeMenu();
+      }
+    });
+  };
+
+  article.addEventListener('pointerdown', (e) => {
+    if ((e.target as HTMLElement).closest('.para-menu')) return;
+    suppressNextClick = false;
+    if ((e.target as HTMLElement).closest('a[href]')) return;
+    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-tts-index]');
+    if (!target) return;
+    const idx = Number(target.dataset.ttsIndex);
+    if (Number.isNaN(idx)) return;
+    startX = e.clientX;
+    startY = e.clientY;
+    clearTimer();
+    timer = window.setTimeout(() => {
+      timer = null;
+      suppressNextClick = true;
+      showMenu(target, chunks[idx]);
+    }, LONG_PRESS_MS);
+  });
+
+  article.addEventListener('pointermove', (e) => {
+    if (timer === null) return;
+    if (
+      Math.abs(e.clientX - startX) > MOVE_THRESHOLD ||
+      Math.abs(e.clientY - startY) > MOVE_THRESHOLD
+    ) {
+      clearTimer();
+    }
+  });
+
+  article.addEventListener('pointerup', clearTimer);
+  article.addEventListener('pointercancel', clearTimer);
+  article.addEventListener('pointerleave', clearTimer);
+
+  article.addEventListener(
+    'click',
+    (e) => {
+      if (!suppressNextClick) return;
+      suppressNextClick = false;
+      if ((e.target as HTMLElement).closest('.para-menu')) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    },
+    true,
+  );
+
+  document.addEventListener('pointerdown', (e) => {
+    if (!currentMenu) return;
+    if (currentMenu.contains(e.target as Node)) return;
+    closeMenu();
+  });
+
+  window.addEventListener('resize', closeMenu);
 }
 
 function handleArticleLinkClick(
