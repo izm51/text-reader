@@ -534,6 +534,7 @@ a {
 }
 
 .article__body [data-tts-index] {
+  position: relative;
   cursor: pointer;
   border-radius: 4px;
   transition: background-color 0.15s ease;
@@ -545,6 +546,80 @@ a {
 .article__body .tts-active {
   background: color-mix(in srgb, var(--accent) 18%, transparent);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.block-actions {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: transparent;
+  transition: background-color 0.12s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 1;
+}
+@media (hover: hover) {
+  .article__body [data-tts-index]:hover > .block-actions {
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+}
+.article__body [data-tts-index].is-actions-visible > .block-actions,
+.article__body [data-tts-index]:focus-within > .block-actions {
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.block-actions__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+@media (hover: hover) {
+  .article__body [data-tts-index]:hover .block-actions__btn {
+    opacity: 0.55;
+    pointer-events: auto;
+  }
+  .block-actions__btn:hover {
+    background: color-mix(in srgb, var(--fg-muted) 12%, transparent);
+    opacity: 0.9;
+  }
+}
+.article__body [data-tts-index].is-actions-visible .block-actions__btn,
+.article__body [data-tts-index] .block-actions__btn:focus-visible {
+  opacity: 0.55;
+  pointer-events: auto;
+}
+.article__body [data-tts-index] .block-actions__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.article__body [data-tts-index].is-bookmarked .block-actions__btn--bookmark {
+  opacity: 0.45;
+  pointer-events: auto;
+}
+.article__body [data-tts-index] .block-actions__btn--copied {
+  opacity: 0.75;
+}
+.article__body [data-tts-index] .block-actions__btn--copy-failed {
+  opacity: 0.75;
+  color: var(--danger);
 }
 
 .hint {
