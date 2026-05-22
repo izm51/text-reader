@@ -7,7 +7,21 @@ import { renderSettings } from './views/settings';
 
 let initialized = false;
 
-export async function renderApp(root: HTMLElement): Promise<void> {
+function swapRoot(): HTMLElement {
+  const root = document.createElement('div');
+  root.id = 'app';
+  const old = document.getElementById('app');
+  if (old && old.parentNode) {
+    old.replaceWith(root);
+  } else {
+    document.body.appendChild(root);
+  }
+  return root;
+}
+
+export async function renderApp(): Promise<void> {
+  const root = swapRoot();
+
   if (!initialized) {
     initTheme();
     applyReadingPrefs();

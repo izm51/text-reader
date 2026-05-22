@@ -6,8 +6,7 @@ import './styles/main.css';
 
 registerSW({ immediate: true });
 
-const root = document.getElementById('app')!;
-void renderApp(root);
+void renderApp();
 
 let prevOnReader = !!new URLSearchParams(location.search).get('doc');
 
@@ -19,11 +18,11 @@ window.addEventListener('popstate', () => {
     getTTS().stop();
   }
   prevOnReader = onReader;
-  void renderApp(root);
+  void renderApp();
 });
 
 initLaunchHandler(() => {
-  void renderApp(root);
+  void renderApp();
 });
 
 if ('storage' in navigator && 'persist' in navigator.storage) {
