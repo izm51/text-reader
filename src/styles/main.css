@@ -556,25 +556,23 @@ a {
   gap: 2px;
   padding: 2px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--bg) 55%, transparent);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.12s ease;
+  background: transparent;
+  transition: background-color 0.12s ease;
   user-select: none;
   -webkit-user-select: none;
   z-index: 1;
 }
 @media (hover: hover) {
   .article__body [data-tts-index]:hover > .block-actions {
-    opacity: 1;
-    pointer-events: auto;
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
 }
 .article__body [data-tts-index].is-actions-visible > .block-actions {
-  opacity: 1;
-  pointer-events: auto;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 .block-actions__btn {
   display: inline-flex;
@@ -587,29 +585,46 @@ a {
   border-radius: 6px;
   background: transparent;
   color: var(--fg-muted);
-  opacity: 0.55;
+  opacity: 0;
+  pointer-events: none;
   cursor: pointer;
   transition: opacity 0.12s ease, background-color 0.12s ease, color 0.12s ease;
 }
 @media (hover: hover) {
+  .article__body [data-tts-index]:hover .block-actions__btn {
+    opacity: 0.55;
+    pointer-events: auto;
+  }
   .block-actions__btn:hover {
     background: color-mix(in srgb, var(--fg-muted) 12%, transparent);
     opacity: 0.95;
   }
 }
+.article__body [data-tts-index].is-actions-visible .block-actions__btn {
+  opacity: 0.55;
+  pointer-events: auto;
+}
+.article__body [data-tts-index].is-bookmarked .block-actions__btn--bookmark {
+  opacity: 0.7;
+  pointer-events: auto;
+}
 .block-actions__btn--on {
   color: color-mix(in srgb, var(--accent) 50%, var(--fg-muted));
-  opacity: 0.85;
 }
 @media (hover: hover) {
+  .article__body [data-tts-index]:hover .block-actions__btn--on,
   .block-actions__btn--on:hover {
+    opacity: 0.95;
     color: color-mix(in srgb, var(--accent) 65%, var(--fg-muted));
-    opacity: 1;
   }
+}
+.article__body [data-tts-index].is-actions-visible .block-actions__btn--on {
+  opacity: 0.95;
 }
 .block-actions__btn--copied {
   color: color-mix(in srgb, var(--accent) 50%, var(--fg-muted));
-  opacity: 0.95;
+  opacity: 0.95 !important;
+  pointer-events: auto;
 }
 
 .hint {
