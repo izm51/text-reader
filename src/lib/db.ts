@@ -34,8 +34,8 @@ let dbPromise: Promise<IDBPDatabase<TextReaderDB>> | null = null;
 export function getDB(): Promise<IDBPDatabase<TextReaderDB>> {
   if (!dbPromise) {
     dbPromise = openDB<TextReaderDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains('documents')) {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
           const store = db.createObjectStore('documents', {
             keyPath: 'id',
             autoIncrement: true,
@@ -43,10 +43,33 @@ export function getDB(): Promise<IDBPDatabase<TextReaderDB>> {
           store.createIndex('createdAt', 'createdAt');
           store.createIndex('updatedAt', 'updatedAt');
         }
+        // v1 -> v2: bookmarks フィールド追加。既存レコードは bookmarks
+        // が undefined のまま残り、読み出し時に `?? []` で吸収される。
+        // スキーマ変更は無いのでデータ移行は不要。
+      },
+      blocked() {
+        console.warn('text-reader IDB upgrade blocked by another tab/worker');
+      },
+      blocking() {
+        // 別タブが新バージョンに上げようとしているのを邪魔しない。
+        const stale = dbPromise;
+        dbPromise = null;
+        void stale?.then((db) => db.close()).catch(() => {});
       },
     });
   }
   return dbPromise;
+}
+
+async function patchDocument(
+  id: number,
+  patch: (cur: DocRecord) => DocRecord,
+): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction('documents', 'readwrite');
+  const cur = await tx.store.get(id);
+  if (cur) await tx.store.put(patch(cur));
+  await tx.done;
 }
 
 export async function listDocuments(): Promise<DocRecord[]> {
@@ -74,33 +97,16 @@ export async function addDocument(
   return id as number;
 }
 
-export async function updateDocument(
-  id: number,
-  patch: Partial<DocRecord>,
-): Promise<void> {
-  const db = await getDB();
-  const cur = await db.get('documents', id);
-  if (!cur) return;
-  await db.put('documents', {
-    ...cur,
-    ...patch,
-    id,
-    updatedAt: Date.now(),
-  });
+export function updateDocument(id: number, patch: Partial<DocRecord>): Promise<void> {
+  return patchDocument(id, (cur) => ({ ...cur, ...patch, id, updatedAt: Date.now() }));
 }
 
-export async function setStarred(id: number, starred: boolean): Promise<void> {
-  const db = await getDB();
-  const cur = await db.get('documents', id);
-  if (!cur) return;
-  await db.put('documents', { ...cur, starred, id });
+export function setStarred(id: number, starred: boolean): Promise<void> {
+  return patchDocument(id, (cur) => ({ ...cur, starred, id }));
 }
 
-export async function setBookmarks(id: number, bookmarks: number[]): Promise<void> {
-  const db = await getDB();
-  const cur = await db.get('documents', id);
-  if (!cur) return;
-  await db.put('documents', { ...cur, bookmarks, id });
+export function setBookmarks(id: number, bookmarks: number[]): Promise<void> {
+  return patchDocument(id, (cur) => ({ ...cur, bookmarks, id }));
 }
 
 export async function deleteDocument(id: number): Promise<void> {

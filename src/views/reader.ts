@@ -141,25 +141,69 @@ const BOOKMARK_SVG_FILLED = `<svg viewBox="0 0 24 24" width="16" height="16" fil
 const COPY_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
 const CHECK_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
 
+let blockActionsAbort: AbortController | null = null;
+
+function getBlockCopyText(block: HTMLElement): string {
+  const clone = block.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll('.block-actions').forEach((n) => n.remove());
+  clone.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
+  return (clone.textContent ?? '').replace(/[ \t]+\n/g, '\n').trim();
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      /* fall through to fallback */
+    }
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.left = '0';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 function bindBlockActions(
   article: HTMLElement,
   blocks: HTMLElement[],
-  chunks: string[],
   doc: DocRecord,
 ) {
+  blockActionsAbort?.abort();
+  const ac = new AbortController();
+  blockActionsAbort = ac;
+  const { signal } = ac;
+
   const bookmarks = new Set<number>(doc.bookmarks ?? []);
   const docId = doc.id!;
 
   blocks.forEach((block, idx) => {
+    // <pre> は overflow-x:auto で横スクロールするためアクションが追従して
+    // 見切れるので、しおり / コピー UI は対象外にする。
+    if (block.tagName === 'PRE') return;
     const isBookmarked = bookmarks.has(idx);
     if (isBookmarked) block.classList.add('is-bookmarked');
     const actions = document.createElement('div');
     actions.className = 'block-actions';
     actions.contentEditable = 'false';
-    actions.innerHTML = `
-      <button type="button" class="block-actions__btn block-actions__btn--copy" data-paragraph-action="copy" aria-label="段落をコピー" tabindex="-1">${COPY_SVG}</button>
-      <button type="button" class="block-actions__btn block-actions__btn--bookmark" data-paragraph-action="bookmark" aria-label="${isBookmarked ? 'しおりを外す' : 'しおりを付ける'}" aria-pressed="${isBookmarked}" tabindex="-1">${isBookmarked ? BOOKMARK_SVG_FILLED : BOOKMARK_SVG_OUTLINE}</button>
-    `;
+    // テンプレートリテラルのインデントを入れない (white-space: pre を継承する祖先で
+    // 余分なテキストノードとして可視化されるのを避ける)
+    actions.innerHTML =
+      `<button type="button" class="block-actions__btn block-actions__btn--copy" data-paragraph-action="copy" aria-label="段落をコピー">${COPY_SVG}</button>` +
+      `<button type="button" class="block-actions__btn block-actions__btn--bookmark" data-paragraph-action="bookmark" aria-label="${isBookmarked ? 'しおりを外す' : 'しおりを付ける'}" aria-pressed="${isBookmarked}">${isBookmarked ? BOOKMARK_SVG_FILLED : BOOKMARK_SVG_OUTLINE}</button>`;
     block.appendChild(actions);
   });
 
@@ -171,8 +215,14 @@ function bindBlockActions(
 
   let lpTimer: number | null = null;
   let lpBlock: HTMLElement | null = null;
+  let lpPointerId: number | null = null;
   let lpStartX = 0;
   let lpStartY = 0;
+
+  // 長押しがトリガーした後、合成 click を抑止するため block + 時刻を覚えておく。
+  // 時刻ベースなのでフラグが残りっぱなしになって次のタップを食う事故が起きない。
+  let firedBlock: HTMLElement | null = null;
+  let firedReleasedAt = 0;
 
   function clearLP() {
     if (lpTimer !== null) {
@@ -180,93 +230,142 @@ function bindBlockActions(
       lpTimer = null;
     }
     lpBlock = null;
+    lpPointerId = null;
   }
 
-  article.addEventListener('pointerdown', (e) => {
-    if (e.pointerType !== 'touch') return;
-    const target = e.target as HTMLElement;
-    if (target.closest('.block-actions')) return;
-    if (target.closest('a[href]')) return;
-    const block = target.closest<HTMLElement>('[data-tts-index]');
-    if (!block) return;
-    clearLP();
-    lpBlock = block;
-    lpStartX = e.clientX;
-    lpStartY = e.clientY;
-    lpTimer = window.setTimeout(() => {
-      lpTimer = null;
-      if (!lpBlock) return;
-      const fired = lpBlock;
-      hideAllActions();
-      fired.classList.add('is-actions-visible');
-      fired.dataset.suppressTtsOnce = '1';
-      window.setTimeout(() => {
-        if (fired.dataset.suppressTtsOnce === '1') delete fired.dataset.suppressTtsOnce;
-      }, 700);
-      try {
-        navigator.vibrate?.(15);
-      } catch {
-        /* ignore */
-      }
-      lpBlock = null;
-    }, 500);
-  });
-
-  article.addEventListener('pointermove', (e) => {
-    if (lpTimer === null) return;
-    if (Math.hypot(e.clientX - lpStartX, e.clientY - lpStartY) > 10) {
+  article.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (e.pointerType !== 'touch') return;
+      const target = e.target as HTMLElement;
+      if (target.closest('.block-actions')) return;
+      if (target.closest('a[href]')) return;
+      const block = target.closest<HTMLElement>('[data-tts-index]');
+      if (!block) return;
+      if (block.tagName === 'PRE') return;
       clearLP();
-    }
-  });
+      lpBlock = block;
+      lpPointerId = e.pointerId;
+      lpStartX = e.clientX;
+      lpStartY = e.clientY;
+      lpTimer = window.setTimeout(() => {
+        lpTimer = null;
+        if (!lpBlock) return;
+        const fired = lpBlock;
+        hideAllActions();
+        fired.classList.add('is-actions-visible');
+        firedBlock = fired;
+        firedReleasedAt = 0;
+        try {
+          navigator.vibrate?.(15);
+        } catch {
+          /* ignore */
+        }
+        lpBlock = null;
+      }, 500);
+    },
+    { signal },
+  );
 
-  article.addEventListener('pointerup', clearLP);
-  article.addEventListener('pointercancel', clearLP);
-
-  document.addEventListener('pointerdown', (e) => {
-    const target = e.target as HTMLElement;
-    const visibleBlock = target.closest<HTMLElement>('[data-tts-index].is-actions-visible');
-    if (visibleBlock) return;
-    hideAllActions();
-  });
-
-  article.addEventListener('click', async (e) => {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-paragraph-action]');
-    if (!btn) return;
-    e.stopPropagation();
-    e.preventDefault();
-    const block = btn.closest<HTMLElement>('[data-tts-index]');
-    if (!block) return;
-    const idx = Number(block.dataset.ttsIndex);
-    if (Number.isNaN(idx)) return;
-    const action = btn.dataset.paragraphAction;
-    if (action === 'bookmark') {
-      const next = !bookmarks.has(idx);
-      if (next) bookmarks.add(idx);
-      else bookmarks.delete(idx);
-      btn.setAttribute('aria-pressed', String(next));
-      btn.setAttribute('aria-label', next ? 'しおりを外す' : 'しおりを付ける');
-      btn.innerHTML = next ? BOOKMARK_SVG_FILLED : BOOKMARK_SVG_OUTLINE;
-      block.classList.toggle('is-bookmarked', next);
-      try {
-        await setBookmarks(docId, [...bookmarks].sort((a, b) => a - b));
-      } catch (err) {
-        console.error('failed to persist bookmarks', err);
+  article.addEventListener(
+    'pointermove',
+    (e) => {
+      if (lpPointerId === null || e.pointerId !== lpPointerId) return;
+      if (Math.hypot(e.clientX - lpStartX, e.clientY - lpStartY) > 10) {
+        clearLP();
       }
-    } else if (action === 'copy') {
-      const text = chunks[idx] ?? '';
-      try {
-        await navigator.clipboard.writeText(text);
-        btn.classList.add('block-actions__btn--copied');
-        btn.innerHTML = CHECK_SVG;
-        window.setTimeout(() => {
+    },
+    { signal },
+  );
+
+  function onPointerEnd(e: PointerEvent) {
+    if (lpPointerId !== null && e.pointerId !== lpPointerId) return;
+    if (firedBlock && firedReleasedAt === 0) firedReleasedAt = Date.now();
+    clearLP();
+  }
+  article.addEventListener('pointerup', onPointerEnd, { signal });
+  article.addEventListener('pointercancel', onPointerEnd, { signal });
+
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      const target = e.target as HTMLElement;
+      const visibleBlock = target.closest<HTMLElement>(
+        '[data-tts-index].is-actions-visible',
+      );
+      if (visibleBlock) return;
+      hideAllActions();
+    },
+    { signal },
+  );
+
+  function isSuppressedClick(target: HTMLElement | null): boolean {
+    if (!firedBlock || !target) return false;
+    if (target !== firedBlock) return false;
+    if (firedReleasedAt === 0) return true; // まだ指が離れていないが click が来た場合
+    return Date.now() - firedReleasedAt < 300;
+  }
+
+  // bindReaderEvents の TTS click ハンドラから参照させるための公開
+  (article as HTMLElement & { __isSuppressedLongPressClick?: typeof isSuppressedClick })
+    .__isSuppressedLongPressClick = isSuppressedClick;
+
+  article.addEventListener(
+    'click',
+    async (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+        '[data-paragraph-action]',
+      );
+      if (!btn) return;
+      e.stopPropagation();
+      e.preventDefault();
+      const block = btn.closest<HTMLElement>('[data-tts-index]');
+      if (!block) return;
+      const idx = Number(block.dataset.ttsIndex);
+      if (Number.isNaN(idx)) return;
+      const action = btn.dataset.paragraphAction;
+      if (action === 'bookmark') {
+        const next = !bookmarks.has(idx);
+        if (next) bookmarks.add(idx);
+        else bookmarks.delete(idx);
+        btn.setAttribute('aria-pressed', String(next));
+        btn.setAttribute('aria-label', next ? 'しおりを外す' : 'しおりを付ける');
+        btn.innerHTML = next ? BOOKMARK_SVG_FILLED : BOOKMARK_SVG_OUTLINE;
+        block.classList.toggle('is-bookmarked', next);
+        try {
+          await setBookmarks(docId, [...bookmarks].sort((a, b) => a - b));
+        } catch (err) {
+          console.error('failed to persist bookmarks', err);
+        }
+      } else if (action === 'copy') {
+        const text = getBlockCopyText(block);
+        const ok = await copyToClipboard(text);
+        const prev = btn.dataset.copyTimerId;
+        if (prev) {
+          clearTimeout(Number(prev));
+          delete btn.dataset.copyTimerId;
+        }
+        if (ok) {
+          btn.classList.remove('block-actions__btn--copy-failed');
+          btn.classList.add('block-actions__btn--copied');
+          btn.innerHTML = CHECK_SVG;
+        } else {
           btn.classList.remove('block-actions__btn--copied');
+          btn.classList.add('block-actions__btn--copy-failed');
+          btn.setAttribute('aria-label', 'コピーに失敗');
+        }
+        const timer = window.setTimeout(() => {
+          btn.classList.remove('block-actions__btn--copied');
+          btn.classList.remove('block-actions__btn--copy-failed');
           btn.innerHTML = COPY_SVG;
+          btn.setAttribute('aria-label', '段落をコピー');
+          delete btn.dataset.copyTimerId;
         }, 1100);
-      } catch (err) {
-        console.error('clipboard copy failed', err);
+        btn.dataset.copyTimerId = String(timer);
       }
-    }
-  });
+    },
+    { signal },
+  );
 }
 
 function tagBlocks(article: HTMLElement): { blocks: HTMLElement[]; chunks: string[] } {
@@ -300,7 +399,7 @@ function bindReaderEvents(root: HTMLElement, doc: DocRecord) {
   const resumeBtn = root.querySelector<HTMLButtonElement>('[data-action="resume"]')!;
 
   const { blocks, chunks } = tagBlocks(article);
-  bindBlockActions(article, blocks, chunks, doc);
+  bindBlockActions(article, blocks, doc);
 
   rate.value = String(controller.currentState.rate);
   rateVal.textContent = `${controller.currentState.rate.toFixed(1)}x`;
@@ -322,8 +421,12 @@ function bindReaderEvents(root: HTMLElement, doc: DocRecord) {
         .join('');
   }
   refreshVoices();
+  // bindBlockActions が作った AbortController に相乗りして、レンダー毎に
+  // voiceschanged リスナーが累積するのを防ぐ。
   if (typeof speechSynthesis !== 'undefined') {
-    speechSynthesis.addEventListener?.('voiceschanged', refreshVoices);
+    speechSynthesis.addEventListener?.('voiceschanged', refreshVoices, {
+      signal: blockActionsAbort?.signal,
+    } as AddEventListenerOptions);
   }
 
   let lastActive: HTMLElement | null = null;
@@ -368,6 +471,10 @@ function bindReaderEvents(root: HTMLElement, doc: DocRecord) {
     controller.setVoice(voiceSel.value || null);
   });
 
+  const isSuppressedLongPressClick = (
+    article as HTMLElement & { __isSuppressedLongPressClick?: (t: HTMLElement | null) => boolean }
+  ).__isSuppressedLongPressClick;
+
   article.addEventListener('click', (e) => {
     const link = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href]');
     if (link) {
@@ -377,10 +484,7 @@ function bindReaderEvents(root: HTMLElement, doc: DocRecord) {
     if ((e.target as HTMLElement).closest('.block-actions')) return;
     const target = (e.target as HTMLElement).closest<HTMLElement>('[data-tts-index]');
     if (!target) return;
-    if (target.dataset.suppressTtsOnce === '1') {
-      delete target.dataset.suppressTtsOnce;
-      return;
-    }
+    if (isSuppressedLongPressClick?.(target)) return;
     const idx = Number(target.dataset.ttsIndex);
     if (Number.isNaN(idx)) return;
     controller.speak(chunks, idx);
@@ -393,6 +497,7 @@ function bindReaderEvents(root: HTMLElement, doc: DocRecord) {
     const target = (e.target as HTMLElement).closest<HTMLElement>('[data-tts-index]');
     if (!target) return;
     e.preventDefault();
+    if (isSuppressedLongPressClick?.(target)) return;
     const idx = Number(target.dataset.ttsIndex);
     if (Number.isNaN(idx)) return;
     controller.speak(chunks, idx);

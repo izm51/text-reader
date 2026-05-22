@@ -569,7 +569,8 @@ a {
     -webkit-backdrop-filter: blur(6px);
   }
 }
-.article__body [data-tts-index].is-actions-visible > .block-actions {
+.article__body [data-tts-index].is-actions-visible > .block-actions,
+.article__body [data-tts-index]:focus-within > .block-actions {
   background: color-mix(in srgb, var(--bg) 55%, transparent);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -600,9 +601,14 @@ a {
     opacity: 0.9;
   }
 }
-.article__body [data-tts-index].is-actions-visible .block-actions__btn {
+.article__body [data-tts-index].is-actions-visible .block-actions__btn,
+.article__body [data-tts-index] .block-actions__btn:focus-visible {
   opacity: 0.55;
   pointer-events: auto;
+}
+.article__body [data-tts-index] .block-actions__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .article__body [data-tts-index].is-bookmarked .block-actions__btn--bookmark {
   opacity: 0.45;
@@ -610,6 +616,10 @@ a {
 }
 .article__body [data-tts-index] .block-actions__btn--copied {
   opacity: 0.75;
+}
+.article__body [data-tts-index] .block-actions__btn--copy-failed {
+  opacity: 0.75;
+  color: var(--danger);
 }
 
 .hint {

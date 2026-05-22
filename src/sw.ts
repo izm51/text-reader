@@ -20,8 +20,8 @@ const STORE = 'documents';
 
 async function getDB() {
   return openDB(DB_NAME, 2, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains(STORE)) {
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
         const store = db.createObjectStore(STORE, {
           keyPath: 'id',
           autoIncrement: true,
@@ -29,6 +29,10 @@ async function getDB() {
         store.createIndex('createdAt', 'createdAt');
         store.createIndex('updatedAt', 'updatedAt');
       }
+      // v1 -> v2: bookmarks フィールド追加。既存データはそのまま保持される。
+    },
+    blocked() {
+      console.warn('text-reader IDB upgrade blocked by another tab/worker');
     },
   });
 }
