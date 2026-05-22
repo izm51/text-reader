@@ -556,7 +556,7 @@ a {
   gap: 2px;
   padding: 2px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   opacity: 0;
@@ -587,24 +587,29 @@ a {
   border-radius: 6px;
   background: transparent;
   color: var(--fg-muted);
+  opacity: 0.55;
   cursor: pointer;
+  transition: opacity 0.12s ease, background-color 0.12s ease, color 0.12s ease;
 }
 @media (hover: hover) {
   .block-actions__btn:hover {
-    background: var(--bg-elev-2);
-    color: var(--fg);
+    background: color-mix(in srgb, var(--fg-muted) 12%, transparent);
+    opacity: 0.95;
   }
 }
 .block-actions__btn--on {
-  color: var(--accent);
+  color: color-mix(in srgb, var(--accent) 50%, var(--fg-muted));
+  opacity: 0.85;
 }
 @media (hover: hover) {
   .block-actions__btn--on:hover {
-    color: var(--accent);
+    color: color-mix(in srgb, var(--accent) 65%, var(--fg-muted));
+    opacity: 1;
   }
 }
 .block-actions__btn--copied {
-  color: var(--accent);
+  color: color-mix(in srgb, var(--accent) 50%, var(--fg-muted));
+  opacity: 0.95;
 }
 
 .hint {
