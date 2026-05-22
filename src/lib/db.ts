@@ -12,6 +12,7 @@ export interface DocRecord {
   byteSize: number;
   lastReadPosition?: number;
   starred?: boolean;
+  bookmarks?: number[];
 }
 
 interface TextReaderDB extends DBSchema {
@@ -26,7 +27,7 @@ interface TextReaderDB extends DBSchema {
 }
 
 const DB_NAME = 'text-reader';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<TextReaderDB>> | null = null;
 
@@ -93,6 +94,13 @@ export async function setStarred(id: number, starred: boolean): Promise<void> {
   const cur = await db.get('documents', id);
   if (!cur) return;
   await db.put('documents', { ...cur, starred, id });
+}
+
+export async function setBookmarks(id: number, bookmarks: number[]): Promise<void> {
+  const db = await getDB();
+  const cur = await db.get('documents', id);
+  if (!cur) return;
+  await db.put('documents', { ...cur, bookmarks, id });
 }
 
 export async function deleteDocument(id: number): Promise<void> {

@@ -19,7 +19,7 @@ const DB_NAME = 'text-reader';
 const STORE = 'documents';
 
 async function getDB() {
-  return openDB(DB_NAME, 1, {
+  return openDB(DB_NAME, 2, {
     upgrade(db) {
       if (!db.objectStoreNames.contains(STORE)) {
         const store = db.createObjectStore(STORE, {
