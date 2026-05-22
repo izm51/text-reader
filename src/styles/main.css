@@ -588,7 +588,7 @@ a {
   opacity: 0;
   pointer-events: none;
   cursor: pointer;
-  transition: opacity 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
 }
 @media (hover: hover) {
   .article__body [data-tts-index]:hover .block-actions__btn {
@@ -597,7 +597,7 @@ a {
   }
   .block-actions__btn:hover {
     background: color-mix(in srgb, var(--fg-muted) 12%, transparent);
-    opacity: 0.95;
+    opacity: 0.9;
   }
 }
 .article__body [data-tts-index].is-actions-visible .block-actions__btn {
@@ -605,26 +605,11 @@ a {
   pointer-events: auto;
 }
 .article__body [data-tts-index].is-bookmarked .block-actions__btn--bookmark {
-  opacity: 0.7;
+  opacity: 0.45;
   pointer-events: auto;
 }
-.block-actions__btn--on {
-  color: color-mix(in srgb, var(--accent) 50%, var(--fg-muted));
-}
-@media (hover: hover) {
-  .article__body [data-tts-index]:hover .block-actions__btn--on,
-  .block-actions__btn--on:hover {
-    opacity: 0.95;
-    color: color-mix(in srgb, var(--accent) 65%, var(--fg-muted));
-  }
-}
-.article__body [data-tts-index].is-actions-visible .block-actions__btn--on {
-  opacity: 0.95;
-}
-.block-actions__btn--copied {
-  color: color-mix(in srgb, var(--accent) 50%, var(--fg-muted));
-  opacity: 0.95 !important;
-  pointer-events: auto;
+.article__body [data-tts-index] .block-actions__btn--copied {
+  opacity: 0.75;
 }
 
 .hint {

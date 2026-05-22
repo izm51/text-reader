@@ -158,7 +158,7 @@ function bindBlockActions(
     actions.contentEditable = 'false';
     actions.innerHTML = `
       <button type="button" class="block-actions__btn block-actions__btn--copy" data-paragraph-action="copy" aria-label="段落をコピー" tabindex="-1">${COPY_SVG}</button>
-      <button type="button" class="block-actions__btn block-actions__btn--bookmark${isBookmarked ? ' block-actions__btn--on' : ''}" data-paragraph-action="bookmark" aria-label="${isBookmarked ? 'しおりを外す' : 'しおりを付ける'}" aria-pressed="${isBookmarked}" tabindex="-1">${isBookmarked ? BOOKMARK_SVG_FILLED : BOOKMARK_SVG_OUTLINE}</button>
+      <button type="button" class="block-actions__btn block-actions__btn--bookmark" data-paragraph-action="bookmark" aria-label="${isBookmarked ? 'しおりを外す' : 'しおりを付ける'}" aria-pressed="${isBookmarked}" tabindex="-1">${isBookmarked ? BOOKMARK_SVG_FILLED : BOOKMARK_SVG_OUTLINE}</button>
     `;
     block.appendChild(actions);
   });
@@ -243,7 +243,6 @@ function bindBlockActions(
       const next = !bookmarks.has(idx);
       if (next) bookmarks.add(idx);
       else bookmarks.delete(idx);
-      btn.classList.toggle('block-actions__btn--on', next);
       btn.setAttribute('aria-pressed', String(next));
       btn.setAttribute('aria-label', next ? 'しおりを外す' : 'しおりを付ける');
       btn.innerHTML = next ? BOOKMARK_SVG_FILLED : BOOKMARK_SVG_OUTLINE;
