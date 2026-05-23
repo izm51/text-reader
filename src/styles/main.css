@@ -306,14 +306,26 @@ a {
 .docs__filter-item.is-selected {
   color: var(--accent);
 }
-.docs__filter-check {
+.docs__filter-check,
+.docs__filter-icon {
   display: inline-flex;
   width: 16px;
   height: 16px;
   align-items: center;
   justify-content: center;
-  color: var(--accent);
   flex-shrink: 0;
+}
+.docs__filter-check {
+  color: var(--accent);
+}
+.docs__filter-icon {
+  color: var(--fg-muted);
+}
+.docs__filter-item.is-selected .docs__filter-icon {
+  color: var(--accent);
+}
+.docs__filter-label {
+  flex: 1;
 }
 @media (hover: hover) {
   .docs__filter-item:hover {
@@ -587,10 +599,6 @@ a {
   white-space: nowrap;
   min-width: 0;
   flex: 1;
-}
-.bm-row__source-sep,
-.bm-row__source-date {
-  flex-shrink: 0;
 }
 
 .topbar__star.topbar__star--on {

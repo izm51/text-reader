@@ -27,14 +27,6 @@ function fmtSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
-function fmtDateShort(ts: number): string {
-  return new Date(ts).toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-}
-
 type FilterMode = 'all' | 'starred' | 'bookmarked' | 'archived';
 
 const FILTER_LABELS: Record<Exclude<FilterMode, 'all'>, string> = {
@@ -45,13 +37,20 @@ const FILTER_LABELS: Record<Exclude<FilterMode, 'all'>, string> = {
 
 const ICON_SETTINGS = `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
 const ICON_SEARCH = `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>`;
-const ICON_FILTER = `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`;
+const ICON_FILTER = `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>`;
 const ICON_MENU = `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>`;
 const ICON_ARCHIVE = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>`;
 const ICON_UNARCHIVE = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M12 18V11"/><path d="m9 14 3-3 3 3"/></svg>`;
 const ICON_TRASH = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
-const ICON_BOOKMARK = `<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
+const ICON_BOOKMARK = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
 const ICON_CHECK = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
+const ICON_STAR_OUTLINE = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+
+const FILTER_ICONS: Record<Exclude<FilterMode, 'all'>, string> = {
+  starred: ICON_STAR_OUTLINE,
+  bookmarked: ICON_BOOKMARK,
+  archived: ICON_ARCHIVE,
+};
 
 let searchQuery = '';
 let searchOpen = false;
@@ -100,13 +99,13 @@ export async function renderLibrary(root: HTMLElement): Promise<void> {
       <section class="docs" aria-label="ライブラリ">
         <div class="docs__header">
           <h2 class="docs__heading">${headingLabel()} <span class="docs__count">${displayCount}</span></h2>
+          <button class="btn btn--ghost btn--icon docs__search-toggle" data-action="toggle-search" aria-label="検索" aria-expanded="${searchOpen}">${ICON_SEARCH}</button>
           <div class="docs__menu-wrap">
             <button class="btn btn--ghost btn--icon docs__filter-toggle${filterMode !== 'all' ? ' is-active' : ''}" data-action="toggle-filter" aria-label="絞り込み" aria-haspopup="menu" aria-expanded="false">${ICON_FILTER}</button>
             <div class="docs__filter-menu" hidden role="menu">
               ${renderFilterMenuItems()}
             </div>
           </div>
-          <button class="btn btn--ghost btn--icon docs__search-toggle" data-action="toggle-search" aria-label="検索" aria-expanded="${searchOpen}">${ICON_SEARCH}</button>
         </div>
         <div class="docs__search" ${searchOpen ? '' : 'hidden'}>
           <input type="search" id="search-input" class="docs__search-input" placeholder="タイトルで絞り込み" value="${escapeHtml(searchQuery)}" />
@@ -133,6 +132,7 @@ function renderFilterMenuItems(): string {
       (m) => `
       <button class="docs__filter-item${filterMode === m ? ' is-selected' : ''}" data-action="set-filter" data-filter="${m}" role="menuitemradio" aria-checked="${filterMode === m}">
         <span class="docs__filter-check">${filterMode === m ? ICON_CHECK : ''}</span>
+        <span class="docs__filter-icon">${FILTER_ICONS[m]}</span>
         <span class="docs__filter-label">${FILTER_LABELS[m]}</span>
       </button>
     `,
@@ -248,7 +248,7 @@ function renderItem(d: DocRecord): string {
   `;
 }
 
-function renderBookmarkRow({ doc, entry, text }: BookmarkItem): string {
+function renderBookmarkRow({ doc, text }: BookmarkItem): string {
   return `
     <li class="bm-row" data-id="${doc.id}">
       <button class="bm-row__main" data-action="open" data-id="${doc.id}">
@@ -256,8 +256,6 @@ function renderBookmarkRow({ doc, entry, text }: BookmarkItem): string {
         <footer class="bm-row__source">
           <span class="bm-row__source-icon" aria-hidden="true">${ICON_BOOKMARK}</span>
           <span class="bm-row__source-title">${escapeHtml(doc.title)}</span>
-          <span class="bm-row__source-sep" aria-hidden="true">·</span>
-          <time class="bm-row__source-date">${fmtDateShort(entry.addedAt)}</time>
         </footer>
       </button>
     </li>
@@ -268,7 +266,7 @@ function renderItemMenu(id: number, archived: boolean): string {
   const items = archived
     ? `
         <button class="doc-item__menu-item" data-action="unarchive" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_UNARCHIVE}</span>アーカイブ解除</button>
-        <button class="doc-item__menu-item doc-item__menu-item--danger" data-action="delete" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_TRASH}</span>完全に削除</button>
+        <button class="doc-item__menu-item doc-item__menu-item--danger" data-action="delete" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_TRASH}</span>削除</button>
       `
     : `
         <button class="doc-item__menu-item" data-action="archive" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_ARCHIVE}</span>アーカイブ</button>
@@ -446,11 +444,7 @@ function attachLibraryEvents(root: HTMLElement, signal: AbortSignal) {
         await setArchived(id, false);
         await renderLibrary(root);
       } else if (action === 'delete' && id !== null) {
-        const doc = cachedDocs.find((d) => d.id === id);
-        const message = doc?.archived
-          ? 'このドキュメントを完全に削除します。よろしいですか？'
-          : 'このドキュメントを削除します。よろしいですか？';
-        if (confirm(message)) {
+        if (confirm('このドキュメントを削除します。よろしいですか？')) {
           await deleteDocument(id);
           await renderLibrary(root);
         }
