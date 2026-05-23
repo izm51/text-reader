@@ -29,7 +29,8 @@ function fmtSize(bytes: number): string {
 
 type FilterMode = 'all' | 'starred' | 'bookmarked' | 'archived';
 
-const FILTER_LABELS: Record<Exclude<FilterMode, 'all'>, string> = {
+const FILTER_LABELS: Record<FilterMode, string> = {
+  all: 'ライブラリ',
   starred: 'スター',
   bookmarked: 'しおり',
   archived: 'アーカイブ',
@@ -45,8 +46,10 @@ const ICON_TRASH = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16"
 const ICON_BOOKMARK = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
 const ICON_BOOKMARK_OUTLINE = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
 const ICON_STAR_OUTLINE = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+const ICON_LIBRARY = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16"/><path d="M8 7v13"/><rect x="11" y="5" width="9" height="15" rx="1"/></svg>`;
 
-const FILTER_ICONS: Record<Exclude<FilterMode, 'all'>, string> = {
+const FILTER_ICONS: Record<FilterMode, string> = {
+  all: ICON_LIBRARY,
   starred: ICON_STAR_OUTLINE,
   bookmarked: ICON_BOOKMARK_OUTLINE,
   archived: ICON_ARCHIVE,
@@ -122,12 +125,11 @@ export async function renderLibrary(root: HTMLElement): Promise<void> {
 }
 
 function headingLabel(): string {
-  if (filterMode === 'all') return 'ライブラリ';
   return FILTER_LABELS[filterMode];
 }
 
 function renderFilterMenuItems(): string {
-  return (['starred', 'bookmarked', 'archived'] as const)
+  return (['all', 'starred', 'bookmarked', 'archived'] as const)
     .map(
       (m) => `
       <button class="docs__filter-item${filterMode === m ? ' is-selected' : ''}" data-action="set-filter" data-filter="${m}" role="menuitemradio" aria-checked="${filterMode === m}">
@@ -413,8 +415,11 @@ function attachLibraryEvents(root: HTMLElement, signal: AbortSignal) {
         }
       } else if (action === 'set-filter') {
         const f = actionEl?.dataset.filter as FilterMode | undefined;
-        if (!f) return;
-        filterMode = filterMode === f ? 'all' : f;
+        if (!f || f === filterMode) {
+          closeAllMenus(root);
+          return;
+        }
+        filterMode = f;
         await renderLibrary(root);
       } else if (action === 'open' && id !== null) {
         navigate(`?doc=${id}`);
