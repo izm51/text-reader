@@ -39,7 +39,7 @@ export function renderSettings(root: HTMLElement): void {
           行間 <span id="lh-val">${prefs.lineHeight.toFixed(2)}</span>
           <input type="range" id="lh" min="1.4" max="2.4" step="0.05" value="${prefs.lineHeight}" />
         </label>
-        <label class="settings__slider">
+        <label class="settings__slider settings__slider--wide-only">
           最大幅 <span id="mw-val">${prefs.maxWidth}px</span>
           <input type="range" id="mw" min="480" max="960" step="20" value="${prefs.maxWidth}" />
         </label>
