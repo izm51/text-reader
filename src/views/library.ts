@@ -4,6 +4,7 @@ import {
   setArchived,
   setStarred,
   getStorageEstimate,
+  type BookmarkEntry,
   type DocRecord,
 } from '../lib/db';
 import { importFiles, importRawText } from '../lib/import';
@@ -24,6 +25,14 @@ function fmtSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function fmtDateShort(ts: number): string {
+  return new Date(ts).toLocaleDateString('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
 }
 
 type FilterMode = 'all' | 'starred' | 'bookmarked' | 'archived';
@@ -59,6 +68,8 @@ export async function renderLibrary(root: HTMLElement): Promise<void> {
   cachedDocs = docs;
   const estimate = await getStorageEstimate();
   const visible = applyFilters(docs);
+  const bookmarkItems = filterMode === 'bookmarked' ? collectBookmarkItems(visible) : [];
+  const displayCount = filterMode === 'bookmarked' ? bookmarkItems.length : visible.length;
 
   root.innerHTML = `
     <header class="topbar">
@@ -88,7 +99,7 @@ export async function renderLibrary(root: HTMLElement): Promise<void> {
 
       <section class="docs" aria-label="ライブラリ">
         <div class="docs__header">
-          <h2 class="docs__heading">${headingLabel()} <span class="docs__count">${visible.length}</span></h2>
+          <h2 class="docs__heading">${headingLabel()} <span class="docs__count">${displayCount}</span></h2>
           <div class="docs__menu-wrap">
             <button class="btn btn--ghost btn--icon docs__filter-toggle${filterMode !== 'all' ? ' is-active' : ''}" data-action="toggle-filter" aria-label="絞り込み" aria-haspopup="menu" aria-expanded="false">${ICON_FILTER}</button>
             <div class="docs__filter-menu" hidden role="menu">
@@ -101,7 +112,7 @@ export async function renderLibrary(root: HTMLElement): Promise<void> {
           <input type="search" id="search-input" class="docs__search-input" placeholder="タイトルで絞り込み" value="${escapeHtml(searchQuery)}" />
           <button class="docs__search-clear" data-action="clear-search" aria-label="クリア" ${searchQuery ? '' : 'hidden'}>✕</button>
         </div>
-        ${renderListSection(docs, visible)}
+        ${renderListSection(docs, visible, bookmarkItems)}
       </section>
 
       ${renderStorageInfo(estimate)}
@@ -129,17 +140,56 @@ function renderFilterMenuItems(): string {
     .join('');
 }
 
-function renderListSection(allDocs: DocRecord[], visible: DocRecord[]): string {
+function renderListSection(
+  allDocs: DocRecord[],
+  visible: DocRecord[],
+  bookmarkItems: BookmarkItem[] = [],
+): string {
   if (allDocs.length === 0) {
     return `<p class="docs__empty">まだドキュメントがありません。txt / md ファイルを追加してください。</p>`;
+  }
+  if (filterMode === 'bookmarked') {
+    if (bookmarkItems.length === 0) {
+      return `<p class="docs__empty">${emptyMessage()}</p>`;
+    }
+    return `<ul class="docs__list docs__list--bookmarks">${bookmarkItems.map(renderBookmarkRow).join('')}</ul>`;
   }
   if (visible.length === 0) {
     return `<p class="docs__empty">${emptyMessage()}</p>`;
   }
-  if (filterMode === 'bookmarked') {
-    return `<ul class="docs__list docs__list--bookmarks">${visible.map(renderBookmarkCard).join('')}</ul>`;
-  }
   return `<ul class="docs__list">${visible.map(renderItem).join('')}</ul>`;
+}
+
+interface BookmarkItem {
+  doc: DocRecord;
+  entry: BookmarkEntry;
+  text: string;
+}
+
+function collectBookmarkItems(docs: DocRecord[]): BookmarkItem[] {
+  const items: BookmarkItem[] = [];
+  const textCache = new Map<number, string[]>();
+  for (const doc of docs) {
+    const entries = doc.bookmarks ?? [];
+    if (entries.length === 0) continue;
+    let texts = textCache.get(doc.id!);
+    if (!texts) {
+      try {
+        texts = getBlockTexts(doc.format, doc.content);
+      } catch {
+        texts = [];
+      }
+      textCache.set(doc.id!, texts);
+    }
+    for (const entry of entries) {
+      if (entry.index < 0 || entry.index >= texts.length) continue;
+      const text = texts[entry.index];
+      if (!text) continue;
+      items.push({ doc, entry, text });
+    }
+  }
+  items.sort((a, b) => b.entry.addedAt - a.entry.addedAt);
+  return items;
 }
 
 function emptyMessage(): string {
@@ -198,41 +248,18 @@ function renderItem(d: DocRecord): string {
   `;
 }
 
-function renderBookmarkCard(d: DocRecord): string {
-  const starred = !!d.starred;
-  const archived = !!d.archived;
-  const bookmarks = (d.bookmarks ?? []).slice().sort((a, b) => a - b);
-  let quotes = '';
-  try {
-    const texts = getBlockTexts(d.format, d.content);
-    quotes = bookmarks
-      .filter((i) => i >= 0 && i < texts.length)
-      .map(
-        (i) => `<li class="bm-card__quote"><p>${escapeHtml(truncate(texts[i], 280))}</p></li>`,
-      )
-      .join('');
-  } catch {
-    quotes = '';
-  }
+function renderBookmarkRow({ doc, entry, text }: BookmarkItem): string {
   return `
-    <li class="doc-item bm-card-wrap${archived ? ' doc-item--archived' : ''}" data-id="${d.id}">
-      <article class="bm-card${starred ? ' bm-card--starred' : ''}">
-        <header class="bm-card__header">
-          <button class="bm-card__title" data-action="open" data-id="${d.id}">
-            <span class="bm-card__icon" aria-hidden="true">${ICON_BOOKMARK}</span>
-            <span class="bm-card__name">${escapeHtml(d.title)}</span>
-            <span class="bm-card__count">${bookmarks.length}</span>
-          </button>
-          <div class="bm-card__actions">
-            <button class="doc__star bm-card__star" data-action="toggle-star" data-id="${d.id}" aria-label="${starred ? 'スターを外す' : 'スターを付ける'}" aria-pressed="${starred}">${starIcon(starred)}</button>
-            <button class="doc__menu-btn" data-action="toggle-item-menu" data-id="${d.id}" aria-label="メニュー" aria-haspopup="menu" aria-expanded="false">${ICON_MENU}</button>
-          </div>
-        </header>
-        ${quotes
-          ? `<ol class="bm-card__quotes">${quotes}</ol>`
-          : `<p class="bm-card__empty">しおりが見つかりません。</p>`}
-      </article>
-      ${renderItemMenu(d.id!, archived)}
+    <li class="bm-row" data-id="${doc.id}">
+      <button class="bm-row__main" data-action="open" data-id="${doc.id}">
+        <p class="bm-row__quote">${escapeHtml(truncate(text, 280))}</p>
+        <footer class="bm-row__source">
+          <span class="bm-row__source-icon" aria-hidden="true">${ICON_BOOKMARK}</span>
+          <span class="bm-row__source-title">${escapeHtml(doc.title)}</span>
+          <span class="bm-row__source-sep" aria-hidden="true">·</span>
+          <time class="bm-row__source-date">${fmtDateShort(entry.addedAt)}</time>
+        </footer>
+      </button>
     </li>
   `;
 }
@@ -503,9 +530,11 @@ function updateFilteredList(root: HTMLElement) {
   section.querySelector('.docs__empty')?.remove();
 
   const visible = applyFilters(cachedDocs);
-  const html = renderListSection(cachedDocs, visible);
+  const bookmarkItems = filterMode === 'bookmarked' ? collectBookmarkItems(visible) : [];
+  const count = filterMode === 'bookmarked' ? bookmarkItems.length : visible.length;
+  const html = renderListSection(cachedDocs, visible, bookmarkItems);
   const countEl = section.querySelector<HTMLElement>('.docs__count');
-  if (countEl) countEl.textContent = String(visible.length);
+  if (countEl) countEl.textContent = String(count);
   section.insertAdjacentHTML('beforeend', html);
 }
 

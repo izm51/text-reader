@@ -2,6 +2,11 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
 export type DocFormat = 'txt' | 'md';
 
+export interface BookmarkEntry {
+  index: number;
+  addedAt: number;
+}
+
 export interface DocRecord {
   id?: number;
   title: string;
@@ -12,7 +17,10 @@ export interface DocRecord {
   byteSize: number;
   lastReadPosition?: number;
   starred?: boolean;
-  bookmarks?: number[];
+  // v3 までは number[]。v4 から BookmarkEntry[]。読み出しは
+  // 必ず getDocument / listDocuments を通すので、外には常に正規化
+  // 済みの BookmarkEntry[] が出る。
+  bookmarks?: BookmarkEntry[];
   archived?: boolean;
 }
 
@@ -28,7 +36,7 @@ interface TextReaderDB extends DBSchema {
 }
 
 const DB_NAME = 'text-reader';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 let dbPromise: Promise<IDBPDatabase<TextReaderDB>> | null = null;
 
@@ -44,10 +52,12 @@ export function getDB(): Promise<IDBPDatabase<TextReaderDB>> {
           store.createIndex('createdAt', 'createdAt');
           store.createIndex('updatedAt', 'updatedAt');
         }
-        // v1 -> v2: bookmarks フィールド追加。既存レコードは bookmarks
-        // が undefined のまま残り、読み出し時に `?? []` で吸収される。
-        // v2 -> v3: archived フィールド追加。同様に undefined のまま残し
-        // 読み出し側で `!!d.archived` として扱う。スキーマ変更は無し。
+        // v1 -> v2: bookmarks フィールド追加。
+        // v2 -> v3: archived フィールド追加。
+        // v3 -> v4: bookmarks を number[] から { index, addedAt }[] へ。
+        //   既存レコードはそのまま放置し、読み出し時に normalizeBookmarks で
+        //   addedAt = updatedAt のフォールバックを付ける。書き込みは常に
+        //   新形式で行われるので、触ったしおりから順に新形式に置き換わる。
       },
       blocked() {
         console.warn('text-reader IDB upgrade blocked by another tab/worker');
@@ -61,6 +71,30 @@ export function getDB(): Promise<IDBPDatabase<TextReaderDB>> {
     });
   }
   return dbPromise;
+}
+
+function normalizeBookmarks(raw: unknown, fallback: number): BookmarkEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const out: BookmarkEntry[] = [];
+  for (const b of raw) {
+    if (typeof b === 'number') {
+      out.push({ index: b, addedAt: fallback });
+    } else if (b && typeof b === 'object') {
+      const entry = b as Partial<BookmarkEntry>;
+      if (typeof entry.index === 'number') {
+        out.push({
+          index: entry.index,
+          addedAt: typeof entry.addedAt === 'number' ? entry.addedAt : fallback,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+function normalizeDoc(doc: DocRecord): DocRecord {
+  doc.bookmarks = normalizeBookmarks(doc.bookmarks, doc.updatedAt ?? Date.now());
+  return doc;
 }
 
 async function patchDocument(
@@ -77,12 +111,15 @@ async function patchDocument(
 export async function listDocuments(): Promise<DocRecord[]> {
   const db = await getDB();
   const all = await db.getAllFromIndex('documents', 'updatedAt');
-  return all.reverse();
+  all.reverse();
+  for (const doc of all) normalizeDoc(doc);
+  return all;
 }
 
 export async function getDocument(id: number): Promise<DocRecord | undefined> {
   const db = await getDB();
-  return db.get('documents', id);
+  const doc = await db.get('documents', id);
+  return doc ? normalizeDoc(doc) : undefined;
 }
 
 export async function addDocument(
@@ -111,7 +148,7 @@ export function setArchived(id: number, archived: boolean): Promise<void> {
   return patchDocument(id, (cur) => ({ ...cur, archived, id }));
 }
 
-export function setBookmarks(id: number, bookmarks: number[]): Promise<void> {
+export function setBookmarks(id: number, bookmarks: BookmarkEntry[]): Promise<void> {
   return patchDocument(id, (cur) => ({ ...cur, bookmarks, id }));
 }
 
