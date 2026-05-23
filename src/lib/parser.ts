@@ -55,3 +55,22 @@ export function renderToHtml(format: DocFormat, content: string): string {
   return format === 'md' ? renderMdToHtml(content) : renderTxtToHtml(content);
 }
 
+// reader.ts の TTS_BLOCK_SELECTOR / tagBlocks と同じインデックス付けで
+// 段落テキストだけを抜き出す。しおりカードの表示に使う。
+const BLOCK_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, li, blockquote, pre';
+
+export function getBlockTexts(format: DocFormat, content: string): string[] {
+  const html = renderToHtml(format, content);
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  const texts: string[] = [];
+  container.querySelectorAll<HTMLElement>(BLOCK_SELECTOR).forEach((el) => {
+    if (el.closest('pre') && el.tagName !== 'PRE') return;
+    if (el.tagName === 'LI' && el.querySelector('ul, ol')) return;
+    const text = (el.textContent || '').trim();
+    if (!text) return;
+    texts.push(text);
+  });
+  return texts;
+}
+

@@ -1,5 +1,5 @@
 import { getDocument, setBookmarks, setStarred, updateDocument } from '../lib/db';
-import type { DocRecord } from '../lib/db';
+import type { BookmarkEntry, DocRecord } from '../lib/db';
 import { setArticleMeta } from '../lib/meta';
 import { renderToHtml } from '../lib/parser';
 import { getTTS } from '../lib/tts';
@@ -187,7 +187,9 @@ function bindBlockActions(
   blockActionsAbort = ac;
   const { signal } = ac;
 
-  const bookmarks = new Set<number>(doc.bookmarks ?? []);
+  // index -> BookmarkEntry の Map。addedAt を保持したいので Set ではなく Map。
+  const bookmarks = new Map<number, BookmarkEntry>();
+  for (const b of doc.bookmarks ?? []) bookmarks.set(b.index, b);
   const docId = doc.id!;
 
   blocks.forEach((block, idx) => {
@@ -326,14 +328,15 @@ function bindBlockActions(
       const action = btn.dataset.paragraphAction;
       if (action === 'bookmark') {
         const next = !bookmarks.has(idx);
-        if (next) bookmarks.add(idx);
+        if (next) bookmarks.set(idx, { index: idx, addedAt: Date.now() });
         else bookmarks.delete(idx);
         btn.setAttribute('aria-pressed', String(next));
         btn.setAttribute('aria-label', next ? 'しおりを外す' : 'しおりを付ける');
         btn.innerHTML = next ? BOOKMARK_SVG_FILLED : BOOKMARK_SVG_OUTLINE;
         block.classList.toggle('is-bookmarked', next);
         try {
-          await setBookmarks(docId, [...bookmarks].sort((a, b) => a - b));
+          const list = [...bookmarks.values()].sort((a, b) => a.index - b.index);
+          await setBookmarks(docId, list);
         } catch (err) {
           console.error('failed to persist bookmarks', err);
         }
