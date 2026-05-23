@@ -404,7 +404,12 @@ function bindBlockActions(
         }, 1100);
         btn.dataset.copyTimerId = String(timer);
       }
-      if (closeAfter) hideAllActions();
+      if (closeAfter) {
+        // 成功フィードバック（✓ / しおり）が一瞬見えるよう少し置いてから閉じる。
+        window.setTimeout(() => {
+          if (!signal.aborted) hideAllActions();
+        }, 450);
+      }
     },
     { signal },
   );
