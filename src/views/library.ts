@@ -1,5 +1,13 @@
-import { deleteDocument, listDocuments, setStarred, getStorageEstimate, type DocRecord } from '../lib/db';
+import {
+  deleteDocument,
+  listDocuments,
+  setArchived,
+  setStarred,
+  getStorageEstimate,
+  type DocRecord,
+} from '../lib/db';
 import { importFiles, importRawText } from '../lib/import';
+import { getBlockTexts } from '../lib/parser';
 import { navigate } from '../router';
 
 function fmtDate(ts: number): string {
@@ -18,21 +26,45 @@ function fmtSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
+type FilterMode = 'all' | 'starred' | 'bookmarked' | 'archived';
+
+const FILTER_LABELS: Record<Exclude<FilterMode, 'all'>, string> = {
+  starred: 'スター',
+  bookmarked: 'しおり',
+  archived: 'アーカイブ',
+};
+
+const ICON_SETTINGS = `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+const ICON_SEARCH = `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>`;
+const ICON_FILTER = `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`;
+const ICON_MENU = `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>`;
+const ICON_ARCHIVE = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>`;
+const ICON_UNARCHIVE = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M12 18V11"/><path d="m9 14 3-3 3 3"/></svg>`;
+const ICON_TRASH = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+const ICON_BOOK = `<svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2z"/><path d="M8 7h6"/><path d="M8 11h6"/></svg>`;
+const ICON_CHECK = `<svg class="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
+
 let searchQuery = '';
 let searchOpen = false;
+let filterMode: FilterMode = 'all';
 let cachedDocs: DocRecord[] = [];
+let libraryAbort: AbortController | null = null;
 
 export async function renderLibrary(root: HTMLElement): Promise<void> {
+  libraryAbort?.abort();
+  libraryAbort = new AbortController();
+  const signal = libraryAbort.signal;
+
   const docs = await listDocuments();
   cachedDocs = docs;
   const estimate = await getStorageEstimate();
-  const filtered = filterDocs(docs, searchQuery);
+  const visible = applyFilters(docs);
 
   root.innerHTML = `
     <header class="topbar">
       <h1 class="topbar__title">Text Reader</h1>
       <div class="topbar__actions">
-        <button class="btn btn--ghost btn--icon" data-action="open-settings" aria-label="設定"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <button class="btn btn--ghost btn--icon" data-action="open-settings" aria-label="設定">${ICON_SETTINGS}</button>
       </div>
     </header>
     <main class="library">
@@ -56,49 +88,172 @@ export async function renderLibrary(root: HTMLElement): Promise<void> {
 
       <section class="docs" aria-label="ライブラリ">
         <div class="docs__header">
-          <h2 class="docs__heading">ライブラリ <span class="docs__count">${docs.length}</span></h2>
-          <button class="btn btn--ghost btn--icon docs__search-toggle" data-action="toggle-search" aria-label="検索" aria-expanded="${searchOpen}"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
+          <h2 class="docs__heading">${headingLabel()} <span class="docs__count">${visible.length}</span></h2>
+          <div class="docs__menu-wrap">
+            <button class="btn btn--ghost btn--icon docs__filter-toggle${filterMode !== 'all' ? ' is-active' : ''}" data-action="toggle-filter" aria-label="絞り込み" aria-haspopup="menu" aria-expanded="false">${ICON_FILTER}</button>
+            <div class="docs__filter-menu" hidden role="menu">
+              ${renderFilterMenuItems()}
+            </div>
+          </div>
+          <button class="btn btn--ghost btn--icon docs__search-toggle" data-action="toggle-search" aria-label="検索" aria-expanded="${searchOpen}">${ICON_SEARCH}</button>
         </div>
         <div class="docs__search" ${searchOpen ? '' : 'hidden'}>
           <input type="search" id="search-input" class="docs__search-input" placeholder="タイトルで絞り込み" value="${escapeHtml(searchQuery)}" />
           <button class="docs__search-clear" data-action="clear-search" aria-label="クリア" ${searchQuery ? '' : 'hidden'}>✕</button>
         </div>
-        ${docs.length === 0
-          ? `<p class="docs__empty">まだドキュメントがありません。txt / md ファイルを追加してください。</p>`
-          : filtered.length === 0
-            ? `<p class="docs__empty">該当するドキュメントがありません。</p>`
-            : `<ul class="docs__list">${filtered.map(renderItem).join('')}</ul>`}
+        ${renderListSection(docs, visible)}
       </section>
 
       ${renderStorageInfo(estimate)}
     </main>
   `;
 
-  attachLibraryEvents(root);
+  attachLibraryEvents(root, signal);
 }
 
-function filterDocs(docs: DocRecord[], query: string): DocRecord[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return docs;
-  return docs.filter((d) => d.title.toLowerCase().includes(q));
+function headingLabel(): string {
+  if (filterMode === 'all') return 'ライブラリ';
+  return FILTER_LABELS[filterMode];
+}
+
+function renderFilterMenuItems(): string {
+  return (['starred', 'bookmarked', 'archived'] as const)
+    .map(
+      (m) => `
+      <button class="docs__filter-item${filterMode === m ? ' is-selected' : ''}" data-action="set-filter" data-filter="${m}" role="menuitemradio" aria-checked="${filterMode === m}">
+        <span class="docs__filter-check">${filterMode === m ? ICON_CHECK : ''}</span>
+        <span class="docs__filter-label">${FILTER_LABELS[m]}</span>
+      </button>
+    `,
+    )
+    .join('');
+}
+
+function renderListSection(allDocs: DocRecord[], visible: DocRecord[]): string {
+  if (allDocs.length === 0) {
+    return `<p class="docs__empty">まだドキュメントがありません。txt / md ファイルを追加してください。</p>`;
+  }
+  if (visible.length === 0) {
+    return `<p class="docs__empty">${emptyMessage()}</p>`;
+  }
+  if (filterMode === 'bookmarked') {
+    return `<ul class="docs__list docs__list--bookmarks">${visible.map(renderBookmarkCard).join('')}</ul>`;
+  }
+  return `<ul class="docs__list">${visible.map(renderItem).join('')}</ul>`;
+}
+
+function emptyMessage(): string {
+  if (searchQuery.trim()) return '該当するドキュメントがありません。';
+  switch (filterMode) {
+    case 'starred':
+      return 'スター付きのドキュメントはありません。';
+    case 'bookmarked':
+      return 'しおりが付いたドキュメントはありません。';
+    case 'archived':
+      return 'アーカイブされたドキュメントはありません。';
+    default:
+      return '該当するドキュメントがありません。';
+  }
+}
+
+function applyFilters(docs: DocRecord[]): DocRecord[] {
+  let result: DocRecord[];
+  switch (filterMode) {
+    case 'archived':
+      result = docs.filter((d) => d.archived);
+      break;
+    case 'starred':
+      result = docs.filter((d) => !d.archived && d.starred);
+      break;
+    case 'bookmarked':
+      result = docs.filter((d) => !d.archived && (d.bookmarks?.length ?? 0) > 0);
+      break;
+    default:
+      result = docs.filter((d) => !d.archived);
+  }
+  const q = searchQuery.trim().toLowerCase();
+  if (q) result = result.filter((d) => d.title.toLowerCase().includes(q));
+  return result;
 }
 
 function renderItem(d: DocRecord): string {
   const starred = !!d.starred;
+  const archived = !!d.archived;
   return `
-    <li class="doc${starred ? ' doc--starred' : ''}" data-id="${d.id}">
-      <button class="doc__star" data-action="toggle-star" data-id="${d.id}" aria-label="${starred ? 'スターを外す' : 'スターを付ける'}" aria-pressed="${starred}">${starIcon(starred)}</button>
-      <button class="doc__open" data-action="open" data-id="${d.id}">
-        <div class="doc__title">${escapeHtml(d.title)}</div>
-        <div class="doc__meta">
-          <span class="doc__format">${d.format.toUpperCase()}</span>
-          <span class="doc__size">${fmtSize(d.byteSize)}</span>
-          <span class="doc__date">${fmtDate(d.updatedAt)}</span>
-        </div>
-      </button>
-      <button class="doc__delete" data-action="delete" data-id="${d.id}" aria-label="削除">✕</button>
+    <li class="doc-item${archived ? ' doc-item--archived' : ''}" data-id="${d.id}">
+      <article class="doc${starred ? ' doc--starred' : ''}">
+        <button class="doc__star" data-action="toggle-star" data-id="${d.id}" aria-label="${starred ? 'スターを外す' : 'スターを付ける'}" aria-pressed="${starred}">${starIcon(starred)}</button>
+        <button class="doc__open" data-action="open" data-id="${d.id}">
+          <div class="doc__title">${escapeHtml(d.title)}</div>
+          <div class="doc__meta">
+            <span class="doc__format">${d.format.toUpperCase()}</span>
+            <span class="doc__size">${fmtSize(d.byteSize)}</span>
+            <span class="doc__date">${fmtDate(d.updatedAt)}</span>
+          </div>
+        </button>
+        <button class="doc__menu-btn" data-action="toggle-item-menu" data-id="${d.id}" aria-label="メニュー" aria-haspopup="menu" aria-expanded="false">${ICON_MENU}</button>
+      </article>
+      ${renderItemMenu(d.id!, archived)}
     </li>
   `;
+}
+
+function renderBookmarkCard(d: DocRecord): string {
+  const starred = !!d.starred;
+  const archived = !!d.archived;
+  const bookmarks = (d.bookmarks ?? []).slice().sort((a, b) => a - b);
+  let quotes = '';
+  try {
+    const texts = getBlockTexts(d.format, d.content);
+    quotes = bookmarks
+      .filter((i) => i >= 0 && i < texts.length)
+      .map(
+        (i) => `<li class="bm-card__quote"><p>${escapeHtml(truncate(texts[i], 280))}</p></li>`,
+      )
+      .join('');
+  } catch {
+    quotes = '';
+  }
+  return `
+    <li class="doc-item bm-card-wrap${archived ? ' doc-item--archived' : ''}" data-id="${d.id}">
+      <article class="bm-card${starred ? ' bm-card--starred' : ''}">
+        <header class="bm-card__header">
+          <button class="bm-card__title" data-action="open" data-id="${d.id}">
+            <span class="bm-card__icon" aria-hidden="true">${ICON_BOOK}</span>
+            <span class="bm-card__name">${escapeHtml(d.title)}</span>
+            <span class="bm-card__count">${bookmarks.length}</span>
+          </button>
+          <div class="bm-card__actions">
+            <button class="doc__star bm-card__star" data-action="toggle-star" data-id="${d.id}" aria-label="${starred ? 'スターを外す' : 'スターを付ける'}" aria-pressed="${starred}">${starIcon(starred)}</button>
+            <button class="doc__menu-btn" data-action="toggle-item-menu" data-id="${d.id}" aria-label="メニュー" aria-haspopup="menu" aria-expanded="false">${ICON_MENU}</button>
+          </div>
+        </header>
+        ${quotes
+          ? `<ol class="bm-card__quotes">${quotes}</ol>`
+          : `<p class="bm-card__empty">しおりが見つかりません。</p>`}
+      </article>
+      ${renderItemMenu(d.id!, archived)}
+    </li>
+  `;
+}
+
+function renderItemMenu(id: number, archived: boolean): string {
+  const items = archived
+    ? `
+        <button class="doc-item__menu-item" data-action="unarchive" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_UNARCHIVE}</span>アーカイブ解除</button>
+        <button class="doc-item__menu-item doc-item__menu-item--danger" data-action="delete" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_TRASH}</span>完全に削除</button>
+      `
+    : `
+        <button class="doc-item__menu-item" data-action="archive" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_ARCHIVE}</span>アーカイブ</button>
+        <button class="doc-item__menu-item doc-item__menu-item--danger" data-action="delete" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_TRASH}</span>削除</button>
+      `;
+  return `<div class="doc-item__menu" data-menu-for="${id}" hidden role="menu">${items}</div>`;
+}
+
+function truncate(s: string, max: number): string {
+  const collapsed = s.replace(/\s+/g, ' ').trim();
+  if (collapsed.length <= max) return collapsed;
+  return collapsed.slice(0, max - 1).trimEnd() + '…';
 }
 
 function starIcon(filled: boolean): string {
@@ -122,104 +277,220 @@ function renderStorageInfo(estimate: StorageEstimate | null): string {
   `;
 }
 
-function attachLibraryEvents(root: HTMLElement) {
+function closeAllMenus(root: HTMLElement) {
+  root
+    .querySelectorAll<HTMLElement>('.doc-item__menu:not([hidden]), .docs__filter-menu:not([hidden])')
+    .forEach((m) => {
+      m.setAttribute('hidden', '');
+    });
+  root
+    .querySelectorAll<HTMLElement>('[aria-expanded="true"][data-action="toggle-item-menu"], [aria-expanded="true"][data-action="toggle-filter"]')
+    .forEach((b) => b.setAttribute('aria-expanded', 'false'));
+}
+
+function attachLibraryEvents(root: HTMLElement, signal: AbortSignal) {
   const fileInput = root.querySelector<HTMLInputElement>('#file-input');
   const dropZone = root.querySelector<HTMLLabelElement>('#drop-zone');
 
-  fileInput?.addEventListener('change', async () => {
-    if (!fileInput.files) return;
-    const ids = await importFiles(fileInput.files);
-    if (ids.length === 1) {
-      navigate(`?doc=${ids[0]}`);
-    } else {
-      navigate('');
-    }
-  });
-
-  if (dropZone) {
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.classList.add('upload__drop--over');
-    });
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('upload__drop--over');
-    });
-    dropZone.addEventListener('drop', async (e) => {
-      e.preventDefault();
-      dropZone.classList.remove('upload__drop--over');
-      const files = e.dataTransfer?.files;
-      if (!files || files.length === 0) return;
-      const ids = await importFiles(files);
-      if (ids.length === 1) navigate(`?doc=${ids[0]}`);
-      else navigate('');
-    });
-  }
-
-  root.addEventListener('click', async (e) => {
-    const target = e.target as HTMLElement;
-    const action = target.closest<HTMLElement>('[data-action]')?.dataset.action;
-    if (!action) return;
-    const idAttr = target.closest<HTMLElement>('[data-id]')?.dataset.id;
-    const id = idAttr ? Number(idAttr) : null;
-
-    if (action === 'open' && id !== null) {
-      navigate(`?doc=${id}`);
-    } else if (action === 'toggle-star' && id !== null) {
-      const doc = cachedDocs.find((d) => d.id === id);
-      const next = !doc?.starred;
-      await setStarred(id, next);
-      if (doc) doc.starred = next;
-      const li = root.querySelector<HTMLElement>(`.doc[data-id="${id}"]`);
-      const btn = li?.querySelector<HTMLButtonElement>('.doc__star');
-      if (li && btn) {
-        li.classList.toggle('doc--starred', next);
-        btn.setAttribute('aria-pressed', String(next));
-        btn.setAttribute('aria-label', next ? 'スターを外す' : 'スターを付ける');
-        btn.innerHTML = starIcon(next);
-      }
-    } else if (action === 'delete' && id !== null) {
-      if (confirm('このドキュメントを削除します。よろしいですか？')) {
-        await deleteDocument(id);
+  fileInput?.addEventListener(
+    'change',
+    async () => {
+      if (!fileInput.files) return;
+      const ids = await importFiles(fileInput.files);
+      if (ids.length === 1) {
+        navigate(`?doc=${ids[0]}`);
+      } else {
         navigate('');
       }
-    } else if (action === 'add-pasted') {
-      const textarea = root.querySelector<HTMLTextAreaElement>('#paste-area');
-      const titleInput = root.querySelector<HTMLInputElement>('#paste-title');
-      const text = textarea?.value.trim() ?? '';
-      if (!text) return;
-      const filename = (titleInput?.value.trim() || 'pasted') + '.txt';
-      const newId = await importRawText(text, filename);
-      navigate(`?doc=${newId}`);
-    } else if (action === 'open-settings') {
-      navigate('?view=settings');
-    } else if (action === 'toggle-search') {
-      searchOpen = !searchOpen;
-      if (!searchOpen) {
-        searchQuery = '';
+    },
+    { signal },
+  );
+
+  if (dropZone) {
+    dropZone.addEventListener(
+      'dragover',
+      (e) => {
+        e.preventDefault();
+        dropZone.classList.add('upload__drop--over');
+      },
+      { signal },
+    );
+    dropZone.addEventListener(
+      'dragleave',
+      () => {
+        dropZone.classList.remove('upload__drop--over');
+      },
+      { signal },
+    );
+    dropZone.addEventListener(
+      'drop',
+      async (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('upload__drop--over');
+        const files = e.dataTransfer?.files;
+        if (!files || files.length === 0) return;
+        const ids = await importFiles(files);
+        if (ids.length === 1) navigate(`?doc=${ids[0]}`);
+        else navigate('');
+      },
+      { signal },
+    );
+  }
+
+  root.addEventListener(
+    'click',
+    async (e) => {
+      const target = e.target as HTMLElement;
+      const actionEl = target.closest<HTMLElement>('[data-action]');
+      const action = actionEl?.dataset.action;
+
+      // 開いているメニューを閉じる: メニュー項目クリック (= 各 data-action ハンドラが
+      // 自身の責務でメニュー状態をリセットする) かトリガー以外は全て閉じる。
+      // メニュー外側 + メニュー内パディング両方を拾うため、`closest('.doc-item__menu')`
+      // ではなく具体的なアクション名で判定する。
+      const isMenuTrigger = action === 'toggle-item-menu' || action === 'toggle-filter';
+      const isMenuChoice =
+        action === 'archive' ||
+        action === 'unarchive' ||
+        action === 'delete' ||
+        action === 'set-filter';
+      if (!isMenuTrigger && !isMenuChoice) {
+        closeAllMenus(root);
       }
-      await renderLibrary(root);
-      if (searchOpen) {
+
+      if (!action) return;
+      const idAttr = actionEl?.dataset.id ?? target.closest<HTMLElement>('[data-id]')?.dataset.id;
+      const id = idAttr ? Number(idAttr) : null;
+
+      if (action === 'toggle-item-menu' && id !== null) {
+        e.stopPropagation();
+        const li = root.querySelector<HTMLElement>(`.doc-item[data-id="${id}"]`);
+        const menu = li?.querySelector<HTMLElement>('.doc-item__menu');
+        const btn = li?.querySelector<HTMLButtonElement>('.doc__menu-btn');
+        if (menu) {
+          const willOpen = menu.hasAttribute('hidden');
+          closeAllMenus(root);
+          if (willOpen) {
+            menu.removeAttribute('hidden');
+            btn?.setAttribute('aria-expanded', 'true');
+          }
+        }
+      } else if (action === 'toggle-filter') {
+        e.stopPropagation();
+        const menu = root.querySelector<HTMLElement>('.docs__filter-menu');
+        const btn = root.querySelector<HTMLButtonElement>('.docs__filter-toggle');
+        if (menu) {
+          const willOpen = menu.hasAttribute('hidden');
+          closeAllMenus(root);
+          if (willOpen) {
+            menu.removeAttribute('hidden');
+            btn?.setAttribute('aria-expanded', 'true');
+          }
+        }
+      } else if (action === 'set-filter') {
+        const f = actionEl?.dataset.filter as FilterMode | undefined;
+        if (!f) return;
+        filterMode = filterMode === f ? 'all' : f;
+        await renderLibrary(root);
+      } else if (action === 'open' && id !== null) {
+        navigate(`?doc=${id}`);
+      } else if (action === 'toggle-star' && id !== null) {
+        const doc = cachedDocs.find((d) => d.id === id);
+        const next = !doc?.starred;
+        await setStarred(id, next);
+        if (doc) doc.starred = next;
+        const li = root.querySelector<HTMLElement>(`.doc-item[data-id="${id}"]`);
+        const card = li?.querySelector<HTMLElement>('.doc, .bm-card');
+        const btn = li?.querySelector<HTMLButtonElement>('.doc__star');
+        if (li && btn) {
+          card?.classList.toggle('doc--starred', next);
+          card?.classList.toggle('bm-card--starred', next);
+          btn.setAttribute('aria-pressed', String(next));
+          btn.setAttribute('aria-label', next ? 'スターを外す' : 'スターを付ける');
+          btn.innerHTML = starIcon(next);
+        }
+        if (filterMode === 'starred' && !next) {
+          await renderLibrary(root);
+        }
+      } else if (action === 'archive' && id !== null) {
+        await setArchived(id, true);
+        await renderLibrary(root);
+      } else if (action === 'unarchive' && id !== null) {
+        await setArchived(id, false);
+        await renderLibrary(root);
+      } else if (action === 'delete' && id !== null) {
+        const doc = cachedDocs.find((d) => d.id === id);
+        const message = doc?.archived
+          ? 'このドキュメントを完全に削除します。よろしいですか？'
+          : 'このドキュメントを削除します。よろしいですか？';
+        if (confirm(message)) {
+          await deleteDocument(id);
+          await renderLibrary(root);
+        }
+      } else if (action === 'add-pasted') {
+        const textarea = root.querySelector<HTMLTextAreaElement>('#paste-area');
+        const titleInput = root.querySelector<HTMLInputElement>('#paste-title');
+        const text = textarea?.value.trim() ?? '';
+        if (!text) return;
+        const filename = (titleInput?.value.trim() || 'pasted') + '.txt';
+        const newId = await importRawText(text, filename);
+        navigate(`?doc=${newId}`);
+      } else if (action === 'open-settings') {
+        navigate('?view=settings');
+      } else if (action === 'toggle-search') {
+        searchOpen = !searchOpen;
+        if (!searchOpen) {
+          searchQuery = '';
+        }
+        await renderLibrary(root);
+        if (searchOpen) {
+          root.querySelector<HTMLInputElement>('#search-input')?.focus();
+        }
+      } else if (action === 'clear-search') {
+        searchQuery = '';
+        await renderLibrary(root);
         root.querySelector<HTMLInputElement>('#search-input')?.focus();
       }
-    } else if (action === 'clear-search') {
-      searchQuery = '';
-      await renderLibrary(root);
-      root.querySelector<HTMLInputElement>('#search-input')?.focus();
-    }
-  });
+    },
+    { signal },
+  );
+
+  root.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key === 'Escape') {
+        const hadMenu = !!root.querySelector(
+          '.doc-item__menu:not([hidden]), .docs__filter-menu:not([hidden])',
+        );
+        if (hadMenu) {
+          closeAllMenus(root);
+          e.stopPropagation();
+        }
+      }
+    },
+    { signal },
+  );
 
   const searchInput = root.querySelector<HTMLInputElement>('#search-input');
-  searchInput?.addEventListener('input', () => {
-    searchQuery = searchInput.value;
-    updateFilteredList(root);
-  });
-  searchInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      searchQuery = '';
-      searchOpen = false;
-      renderLibrary(root);
-    }
-  });
+  searchInput?.addEventListener(
+    'input',
+    () => {
+      searchQuery = searchInput.value;
+      updateFilteredList(root);
+    },
+    { signal },
+  );
+  searchInput?.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key === 'Escape') {
+        searchQuery = '';
+        searchOpen = false;
+        renderLibrary(root);
+      }
+    },
+    { signal },
+  );
 }
 
 function updateFilteredList(root: HTMLElement) {
@@ -231,12 +502,10 @@ function updateFilteredList(root: HTMLElement) {
   section.querySelector('.docs__list')?.remove();
   section.querySelector('.docs__empty')?.remove();
 
-  const filtered = filterDocs(cachedDocs, searchQuery);
-  const html = cachedDocs.length === 0
-    ? `<p class="docs__empty">まだドキュメントがありません。txt / md ファイルを追加してください。</p>`
-    : filtered.length === 0
-      ? `<p class="docs__empty">該当するドキュメントがありません。</p>`
-      : `<ul class="docs__list">${filtered.map(renderItem).join('')}</ul>`;
+  const visible = applyFilters(cachedDocs);
+  const html = renderListSection(cachedDocs, visible);
+  const countEl = section.querySelector<HTMLElement>('.docs__count');
+  if (countEl) countEl.textContent = String(visible.length);
   section.insertAdjacentHTML('beforeend', html);
 }
 
@@ -248,4 +517,3 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
-

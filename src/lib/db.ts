@@ -13,6 +13,7 @@ export interface DocRecord {
   lastReadPosition?: number;
   starred?: boolean;
   bookmarks?: number[];
+  archived?: boolean;
 }
 
 interface TextReaderDB extends DBSchema {
@@ -27,7 +28,7 @@ interface TextReaderDB extends DBSchema {
 }
 
 const DB_NAME = 'text-reader';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBPDatabase<TextReaderDB>> | null = null;
 
@@ -45,7 +46,8 @@ export function getDB(): Promise<IDBPDatabase<TextReaderDB>> {
         }
         // v1 -> v2: bookmarks フィールド追加。既存レコードは bookmarks
         // が undefined のまま残り、読み出し時に `?? []` で吸収される。
-        // スキーマ変更は無いのでデータ移行は不要。
+        // v2 -> v3: archived フィールド追加。同様に undefined のまま残し
+        // 読み出し側で `!!d.archived` として扱う。スキーマ変更は無し。
       },
       blocked() {
         console.warn('text-reader IDB upgrade blocked by another tab/worker');
@@ -103,6 +105,10 @@ export function updateDocument(id: number, patch: Partial<DocRecord>): Promise<v
 
 export function setStarred(id: number, starred: boolean): Promise<void> {
   return patchDocument(id, (cur) => ({ ...cur, starred, id }));
+}
+
+export function setArchived(id: number, archived: boolean): Promise<void> {
+  return patchDocument(id, (cur) => ({ ...cur, archived, id }));
 }
 
 export function setBookmarks(id: number, bookmarks: number[]): Promise<void> {

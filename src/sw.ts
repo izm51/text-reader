@@ -19,7 +19,7 @@ const DB_NAME = 'text-reader';
 const STORE = 'documents';
 
 async function getDB() {
-  return openDB(DB_NAME, 2, {
+  return openDB(DB_NAME, 3, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
         const store = db.createObjectStore(STORE, {
@@ -30,6 +30,7 @@ async function getDB() {
         store.createIndex('updatedAt', 'updatedAt');
       }
       // v1 -> v2: bookmarks フィールド追加。既存データはそのまま保持される。
+      // v2 -> v3: archived フィールド追加。同様に保持。
     },
     blocked() {
       console.warn('text-reader IDB upgrade blocked by another tab/worker');
