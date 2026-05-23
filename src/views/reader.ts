@@ -210,6 +210,9 @@ function bindBlockActions(
   });
 
   function hideAllActions() {
+    // タッチでボタンに乗ったフォーカスは残り続け、次の操作を阻害するので明示的に外す。
+    const active = document.activeElement as HTMLElement | null;
+    if (active?.closest('.block-actions')) active.blur();
     article
       .querySelectorAll<HTMLElement>('[data-tts-index].is-actions-visible')
       .forEach((el) => el.classList.remove('is-actions-visible'));

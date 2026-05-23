@@ -768,7 +768,7 @@ a {
   }
 }
 .article__body [data-tts-index].is-actions-visible > .block-actions,
-.article__body [data-tts-index]:focus-within > .block-actions {
+.article__body [data-tts-index]:has(.block-actions__btn:focus-visible) > .block-actions {
   background: color-mix(in srgb, var(--bg) 55%, transparent);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
