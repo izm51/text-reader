@@ -223,6 +223,9 @@ function bindBlockActions(
   let lpPointerId: number | null = null;
   let lpStartX = 0;
   let lpStartY = 0;
+  // pointercancel ではタイマーを止めない（テキスト選択が pointercancel を投げても
+  // メニューを確実に出すため）。その場合に指が既に離れているかをこのフラグで持つ。
+  let lpEnded = false;
 
   // 長押しがトリガーした後、合成 click を抑止するため block + 時刻を覚えておく。
   // 時刻ベースなのでフラグが残りっぱなしになって次のタップを食う事故が起きない。
@@ -253,6 +256,7 @@ function bindBlockActions(
       lpPointerId = e.pointerId;
       lpStartX = e.clientX;
       lpStartY = e.clientY;
+      lpEnded = false;
       lpTimer = window.setTimeout(() => {
         lpTimer = null;
         if (!lpBlock) return;
@@ -260,14 +264,16 @@ function bindBlockActions(
         hideAllActions();
         fired.classList.add('is-actions-visible');
         firedBlock = fired;
-        firedReleasedAt = 0;
+        // pointercancel 後に発火した場合は指が既に離れているので、抑止が
+        // 残り続けないよう解放時刻を今にしておく。
+        firedReleasedAt = lpEnded ? Date.now() : 0;
         try {
           navigator.vibrate?.(15);
         } catch {
           /* ignore */
         }
         lpBlock = null;
-      }, 500);
+      }, 300);
     },
     { signal },
   );
@@ -283,13 +289,29 @@ function bindBlockActions(
     { signal },
   );
 
-  function onPointerEnd(e: PointerEvent) {
-    if (lpPointerId !== null && e.pointerId !== lpPointerId) return;
-    if (firedBlock && firedReleasedAt === 0) firedReleasedAt = Date.now();
-    clearLP();
-  }
-  article.addEventListener('pointerup', onPointerEnd, { signal });
-  article.addEventListener('pointercancel', onPointerEnd, { signal });
+  // pointerup（=タップで指を離した）はタイマーを止める。300ms 未満の素早いタップで
+  // メニューが出ないようにするため。
+  article.addEventListener(
+    'pointerup',
+    (e) => {
+      if (lpPointerId !== null && e.pointerId !== lpPointerId) return;
+      lpEnded = true;
+      if (firedBlock && firedReleasedAt === 0) firedReleasedAt = Date.now();
+      clearLP();
+    },
+    { signal },
+  );
+  // pointercancel（ネイティブのテキスト選択開始など）ではタイマーを止めず、
+  // 300ms 経過でメニューを出す。スクロールは pointermove(>10px) 側で打ち切られる。
+  article.addEventListener(
+    'pointercancel',
+    (e) => {
+      if (lpPointerId !== null && e.pointerId !== lpPointerId) return;
+      lpEnded = true;
+      if (firedBlock && firedReleasedAt === 0) firedReleasedAt = Date.now();
+    },
+    { signal },
+  );
 
   document.addEventListener(
     'pointerdown',
