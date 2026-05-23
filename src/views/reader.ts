@@ -317,10 +317,18 @@ function bindBlockActions(
     'pointerdown',
     (e) => {
       const target = e.target as HTMLElement;
+      // メニュー上のボタンは click ハンドラ側でアクション実行後に閉じるので、
+      // ここでは閉じない（閉じると pointer-events が切れて click が成立しない）。
+      if (target.closest('.block-actions')) return;
+      // 開いているメニューと同じ段落をタップした場合、その「閉じるためのタップ」で
+      // TTS が始まらないよう合成 click を抑止してから閉じる。
       const visibleBlock = target.closest<HTMLElement>(
         '[data-tts-index].is-actions-visible',
       );
-      if (visibleBlock) return;
+      if (visibleBlock) {
+        firedBlock = visibleBlock;
+        firedReleasedAt = Date.now();
+      }
       hideAllActions();
     },
     { signal },
@@ -351,6 +359,8 @@ function bindBlockActions(
       const idx = Number(block.dataset.ttsIndex);
       if (Number.isNaN(idx)) return;
       const action = btn.dataset.paragraphAction;
+      // 押したらメニューを閉じる。ただしコピー失敗時だけはエラー表示を見せるため残す。
+      let closeAfter = true;
       if (action === 'bookmark') {
         const next = !bookmarks.has(idx);
         if (next) bookmarks.set(idx, { index: idx, addedAt: Date.now() });
@@ -381,6 +391,7 @@ function bindBlockActions(
           btn.classList.remove('block-actions__btn--copied');
           btn.classList.add('block-actions__btn--copy-failed');
           btn.setAttribute('aria-label', 'コピーに失敗');
+          closeAfter = false;
         }
         const timer = window.setTimeout(() => {
           btn.classList.remove('block-actions__btn--copied');
@@ -391,6 +402,7 @@ function bindBlockActions(
         }, 1100);
         btn.dataset.copyTimerId = String(timer);
       }
+      if (closeAfter) hideAllActions();
     },
     { signal },
   );
