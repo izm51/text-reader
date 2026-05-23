@@ -747,11 +747,12 @@ a {
 
 .block-actions {
   position: absolute;
-  bottom: 2px;
+  bottom: 1px;
   right: 2px;
   display: flex;
+  align-items: flex-end;
   gap: 2px;
-  padding: 2px;
+  padding: 0 2px;
   border-radius: 8px;
   background: transparent;
   transition: background-color 0.12s ease;
@@ -777,7 +778,7 @@ a {
   align-items: center;
   justify-content: center;
   width: 28px;
-  height: 28px;
+  height: 18px;
   padding: 0;
   border: none;
   border-radius: 6px;
