@@ -386,10 +386,12 @@ a {
   margin: 0;
   padding: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 .doc-item {
   position: relative;
+  min-width: 0;
 }
 .doc-item--archived .doc,
 .doc-item--archived .bm-card {
