@@ -556,7 +556,7 @@ a {
 }
 .bm-card__icon {
   display: inline-flex;
-  color: var(--fg-muted);
+  color: var(--accent);
   flex-shrink: 0;
 }
 .bm-card__name {
