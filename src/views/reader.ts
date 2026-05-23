@@ -354,6 +354,8 @@ function bindBlockActions(
       if (!btn) return;
       e.stopPropagation();
       e.preventDefault();
+      // ボタン操作時は長押しで始まったネイティブのテキスト選択も解除する。
+      window.getSelection()?.removeAllRanges();
       const block = btn.closest<HTMLElement>('[data-tts-index]');
       if (!block) return;
       const idx = Number(block.dataset.ttsIndex);
