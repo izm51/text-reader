@@ -26,8 +26,8 @@ export default defineConfig({
       manifest: {
         name: 'Text Reader',
         short_name: 'TextReader',
-        description: 'txt / md をブラウザ読み上げ対応の記事として表示するリーダー',
-        lang: 'ja',
+        description: 'A reader that displays txt / md files as articles with browser text-to-speech.',
+        lang: 'en',
         dir: 'ltr',
         theme_color: '#1f1f1f',
         background_color: '#ffffff',
@@ -73,8 +73,8 @@ export default defineConfig({
         ],
         shortcuts: [
           {
-            name: 'ライブラリを開く',
-            short_name: 'ライブラリ',
+            name: 'Open Library',
+            short_name: 'Library',
             url: `${BASE}`,
           },
         ],
