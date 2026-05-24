@@ -94,7 +94,7 @@ const en: Record<MsgKey, string> = {
   'settings.lineHeight': 'Line spacing',
   'settings.maxWidth': 'Max width',
   'settings.reset': 'Reset to defaults',
-  'settings.language': '言語（Language）',
+  'settings.language': 'Language',
   'settings.language.system': 'Match device',
   'settings.usage': 'Tips',
   'settings.usage.share':
