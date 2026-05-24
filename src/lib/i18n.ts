@@ -17,7 +17,7 @@ const ja = {
   'settings.lineHeight': '行間',
   'settings.maxWidth': '最大幅',
   'settings.reset': 'デフォルトに戻す',
-  'settings.language': '言語',
+  'settings.language': '言語（Language）',
   'settings.language.system': '端末に合わせる',
   'settings.usage': '使い方',
   'settings.usage.share':
@@ -94,7 +94,7 @@ const en: Record<MsgKey, string> = {
   'settings.lineHeight': 'Line spacing',
   'settings.maxWidth': 'Max width',
   'settings.reset': 'Reset to defaults',
-  'settings.language': 'Language',
+  'settings.language': '言語（Language）',
   'settings.language.system': 'Match device',
   'settings.usage': 'Tips',
   'settings.usage.share':
