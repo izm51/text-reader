@@ -173,12 +173,9 @@ export function getLangPref(): LangPref {
   return 'system';
 }
 
-export function resolveLang(pref: LangPref = getLangPref()): Lang {
-  return pref === 'ja' || pref === 'en' ? pref : detectLang();
-}
-
 export function getLang(): Lang {
-  return resolveLang();
+  const pref = getLangPref();
+  return pref === 'ja' || pref === 'en' ? pref : detectLang();
 }
 
 export function getLocale(): string {
