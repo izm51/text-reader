@@ -1,3 +1,5 @@
+import { getLang, getLocale } from './i18n';
+
 export interface TTSState {
   status: 'idle' | 'playing' | 'paused';
   cursor: number;
@@ -101,11 +103,12 @@ export class TTSController {
     const u = new SpeechSynthesisUtterance(this.chunks[idx]);
     u.rate = this.state.rate;
     u.pitch = this.state.pitch;
-    u.lang = 'ja-JP';
+    u.lang = getLocale();
     const voices = this.getVoices();
+    const uiLang = getLang();
     const selected =
       voices.find((v) => v.voiceURI === this.state.voiceURI) ??
-      voices.find((v) => v.lang.startsWith('ja')) ??
+      voices.find((v) => v.lang.startsWith(uiLang)) ??
       voices[0];
     if (selected) u.voice = selected;
 

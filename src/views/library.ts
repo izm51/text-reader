@@ -9,10 +9,11 @@ import {
 } from '../lib/db';
 import { importFiles, importRawText } from '../lib/import';
 import { getBlockTexts } from '../lib/parser';
+import { getLocale, t } from '../lib/i18n';
 import { navigate } from '../router';
 
 function fmtDate(ts: number): string {
-  return new Date(ts).toLocaleString('ja-JP', {
+  return new Date(ts).toLocaleString(getLocale(), {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -29,12 +30,9 @@ function fmtSize(bytes: number): string {
 
 type FilterMode = 'all' | 'starred' | 'bookmarked' | 'archived';
 
-const FILTER_LABELS: Record<FilterMode, string> = {
-  all: 'ライブラリ',
-  starred: 'スター',
-  bookmarked: 'しおり',
-  archived: 'アーカイブ',
-};
+function filterLabel(m: FilterMode): string {
+  return t(`library.filter.${m}`);
+}
 
 const ICON_SETTINGS = `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
 const ICON_SEARCH = `<svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>`;
@@ -77,42 +75,42 @@ export async function renderLibrary(root: HTMLElement): Promise<void> {
     <header class="topbar">
       <h1 class="topbar__title">Text Reader</h1>
       <div class="topbar__actions">
-        <button class="btn btn--ghost btn--icon" data-action="open-settings" aria-label="設定">${ICON_SETTINGS}</button>
+        <button class="btn btn--ghost btn--icon" data-action="open-settings" aria-label="${t('common.settings')}">${ICON_SETTINGS}</button>
       </div>
     </header>
     <main class="library">
-      <p class="library__intro">登録したテキストを、音声読み上げで聞くことができます。</p>
-      <section class="upload" aria-label="ファイル取り込み">
+      <p class="library__intro">${t('library.intro')}</p>
+      <section class="upload" aria-label="${t('library.upload.aria')}">
         <label class="upload__drop" id="drop-zone">
           <input type="file" id="file-input" accept=".txt,.md,.markdown,text/plain,text/markdown" multiple hidden />
           <div class="upload__icon" aria-hidden="true">＋</div>
-          <div class="upload__primary">タップ または ドラッグして追加</div>
-          <div class="upload__hint">.txt / .md をアップロード</div>
+          <div class="upload__primary">${t('library.upload.primary')}</div>
+          <div class="upload__hint">${t('library.upload.hint')}</div>
         </label>
         <details class="upload__paste">
-          <summary>テキストを直接貼り付け</summary>
-          <textarea id="paste-area" rows="6" placeholder="ここに本文を貼り付け…"></textarea>
+          <summary>${t('library.paste.summary')}</summary>
+          <textarea id="paste-area" rows="6" placeholder="${t('library.paste.placeholder')}"></textarea>
           <div class="upload__paste-actions">
-            <input type="text" id="paste-title" placeholder="タイトル（任意）" />
-            <button class="btn btn--primary" data-action="add-pasted">追加</button>
+            <input type="text" id="paste-title" placeholder="${t('library.paste.title')}" />
+            <button class="btn btn--primary" data-action="add-pasted">${t('library.paste.add')}</button>
           </div>
         </details>
       </section>
 
-      <section class="docs" aria-label="ライブラリ">
+      <section class="docs" aria-label="${t('library.filter.all')}">
         <div class="docs__header">
           <h2 class="docs__heading">${headingLabel()} <span class="docs__count">${displayCount}</span></h2>
-          <button class="btn btn--ghost btn--icon docs__search-toggle" data-action="toggle-search" aria-label="検索" aria-expanded="${searchOpen}">${ICON_SEARCH}</button>
+          <button class="btn btn--ghost btn--icon docs__search-toggle" data-action="toggle-search" aria-label="${t('library.search')}" aria-expanded="${searchOpen}">${ICON_SEARCH}</button>
           <div class="docs__menu-wrap">
-            <button class="btn btn--ghost btn--icon docs__filter-toggle${filterMode !== 'all' ? ' is-active' : ''}" data-action="toggle-filter" aria-label="絞り込み" aria-haspopup="menu" aria-expanded="false">${ICON_FILTER}</button>
+            <button class="btn btn--ghost btn--icon docs__filter-toggle${filterMode !== 'all' ? ' is-active' : ''}" data-action="toggle-filter" aria-label="${t('library.filter')}" aria-haspopup="menu" aria-expanded="false">${ICON_FILTER}</button>
             <div class="docs__filter-menu" hidden role="menu">
               ${renderFilterMenuItems()}
             </div>
           </div>
         </div>
         <div class="docs__search" ${searchOpen ? '' : 'hidden'}>
-          <input type="search" id="search-input" class="docs__search-input" placeholder="タイトルで絞り込み" value="${escapeHtml(searchQuery)}" />
-          <button class="docs__search-clear" data-action="clear-search" aria-label="クリア" ${searchQuery ? '' : 'hidden'}>✕</button>
+          <input type="search" id="search-input" class="docs__search-input" placeholder="${t('library.search.placeholder')}" value="${escapeHtml(searchQuery)}" />
+          <button class="docs__search-clear" data-action="clear-search" aria-label="${t('library.search.clear')}" ${searchQuery ? '' : 'hidden'}>✕</button>
         </div>
         ${renderListSection(docs, visible, bookmarkItems)}
       </section>
@@ -125,7 +123,7 @@ export async function renderLibrary(root: HTMLElement): Promise<void> {
 }
 
 function headingLabel(): string {
-  return FILTER_LABELS[filterMode];
+  return filterLabel(filterMode);
 }
 
 function renderFilterMenuItems(): string {
@@ -134,7 +132,7 @@ function renderFilterMenuItems(): string {
       (m) => `
       <button class="docs__filter-item${filterMode === m ? ' is-selected' : ''}" data-action="set-filter" data-filter="${m}" role="menuitemradio" aria-checked="${filterMode === m}">
         <span class="docs__filter-icon">${FILTER_ICONS[m]}</span>
-        <span class="docs__filter-label">${FILTER_LABELS[m]}</span>
+        <span class="docs__filter-label">${filterLabel(m)}</span>
       </button>
     `,
     )
@@ -147,7 +145,7 @@ function renderListSection(
   bookmarkItems: BookmarkItem[] = [],
 ): string {
   if (allDocs.length === 0) {
-    return `<p class="docs__empty">まだドキュメントがありません。txt / md ファイルを追加してください。</p>`;
+    return `<p class="docs__empty">${t('library.empty.noDocs')}</p>`;
   }
   if (filterMode === 'bookmarked') {
     if (bookmarkItems.length === 0) {
@@ -194,16 +192,16 @@ function collectBookmarkItems(docs: DocRecord[]): BookmarkItem[] {
 }
 
 function emptyMessage(): string {
-  if (searchQuery.trim()) return '該当するドキュメントがありません。';
+  if (searchQuery.trim()) return t('library.empty.noMatch');
   switch (filterMode) {
     case 'starred':
-      return 'スター付きのドキュメントはありません。';
+      return t('library.empty.starred');
     case 'bookmarked':
-      return 'しおりが付いたドキュメントはありません。';
+      return t('library.empty.bookmarked');
     case 'archived':
-      return 'アーカイブされたドキュメントはありません。';
+      return t('library.empty.archived');
     default:
-      return '該当するドキュメントがありません。';
+      return t('library.empty.noMatch');
   }
 }
 
@@ -233,7 +231,7 @@ function renderItem(d: DocRecord): string {
   return `
     <li class="doc-item${archived ? ' doc-item--archived' : ''}" data-id="${d.id}">
       <article class="doc${starred ? ' doc--starred' : ''}">
-        <button class="doc__star" data-action="toggle-star" data-id="${d.id}" aria-label="${starred ? 'スターを外す' : 'スターを付ける'}" aria-pressed="${starred}">${starIcon(starred)}</button>
+        <button class="doc__star" data-action="toggle-star" data-id="${d.id}" aria-label="${starred ? t('doc.star.remove') : t('doc.star.add')}" aria-pressed="${starred}">${starIcon(starred)}</button>
         <button class="doc__open" data-action="open" data-id="${d.id}">
           <div class="doc__title">${escapeHtml(d.title)}</div>
           <div class="doc__meta">
@@ -242,7 +240,7 @@ function renderItem(d: DocRecord): string {
             <span class="doc__date">${fmtDate(d.updatedAt)}</span>
           </div>
         </button>
-        <button class="doc__menu-btn" data-action="toggle-item-menu" data-id="${d.id}" aria-label="メニュー" aria-haspopup="menu" aria-expanded="false">${ICON_MENU}</button>
+        <button class="doc__menu-btn" data-action="toggle-item-menu" data-id="${d.id}" aria-label="${t('doc.menu')}" aria-haspopup="menu" aria-expanded="false">${ICON_MENU}</button>
       </article>
       ${renderItemMenu(d.id!, archived)}
     </li>
@@ -266,12 +264,12 @@ function renderBookmarkRow({ doc, text }: BookmarkItem): string {
 function renderItemMenu(id: number, archived: boolean): string {
   const items = archived
     ? `
-        <button class="doc-item__menu-item" data-action="unarchive" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_UNARCHIVE}</span>アーカイブ解除</button>
-        <button class="doc-item__menu-item doc-item__menu-item--danger" data-action="delete" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_TRASH}</span>削除</button>
+        <button class="doc-item__menu-item" data-action="unarchive" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_UNARCHIVE}</span>${t('doc.unarchive')}</button>
+        <button class="doc-item__menu-item doc-item__menu-item--danger" data-action="delete" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_TRASH}</span>${t('doc.delete')}</button>
       `
     : `
-        <button class="doc-item__menu-item" data-action="archive" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_ARCHIVE}</span>アーカイブ</button>
-        <button class="doc-item__menu-item doc-item__menu-item--danger" data-action="delete" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_TRASH}</span>削除</button>
+        <button class="doc-item__menu-item" data-action="archive" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_ARCHIVE}</span>${t('doc.archive')}</button>
+        <button class="doc-item__menu-item doc-item__menu-item--danger" data-action="delete" data-id="${id}" role="menuitem"><span class="doc-item__menu-icon">${ICON_TRASH}</span>${t('doc.delete')}</button>
       `;
   return `<div class="doc-item__menu" data-menu-for="${id}" hidden role="menu">${items}</div>`;
 }
@@ -294,8 +292,8 @@ function renderStorageInfo(estimate: StorageEstimate | null): string {
     ? Math.min(100, ((estimate.usage ?? 0) / estimate.quota) * 100)
     : 0;
   return `
-    <section class="storage" aria-label="ストレージ使用状況">
-      <div class="storage__label">ストレージ ${usedMB} MB / ${quotaMB} MB</div>
+    <section class="storage" aria-label="${t('library.storage.aria')}">
+      <div class="storage__label">${t('library.storage.label', { used: usedMB, quota: quotaMB })}</div>
       <div class="storage__bar" role="progressbar" aria-valuenow="${pct.toFixed(0)}" aria-valuemin="0" aria-valuemax="100">
         <div class="storage__fill" style="width:${pct.toFixed(2)}%"></div>
       </div>
@@ -435,7 +433,7 @@ function attachLibraryEvents(root: HTMLElement, signal: AbortSignal) {
           card?.classList.toggle('doc--starred', next);
           card?.classList.toggle('bm-card--starred', next);
           btn.setAttribute('aria-pressed', String(next));
-          btn.setAttribute('aria-label', next ? 'スターを外す' : 'スターを付ける');
+          btn.setAttribute('aria-label', next ? t('doc.star.remove') : t('doc.star.add'));
           btn.innerHTML = starIcon(next);
         }
         if (filterMode === 'starred' && !next) {
@@ -448,7 +446,7 @@ function attachLibraryEvents(root: HTMLElement, signal: AbortSignal) {
         await setArchived(id, false);
         await renderLibrary(root);
       } else if (action === 'delete' && id !== null) {
-        if (confirm('このドキュメントを削除します。よろしいですか？')) {
+        if (confirm(t('doc.deleteConfirm'))) {
           await deleteDocument(id);
           await renderLibrary(root);
         }

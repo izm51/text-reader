@@ -3,6 +3,7 @@ import type { BookmarkEntry, DocRecord } from '../lib/db';
 import { setArticleMeta } from '../lib/meta';
 import { renderToHtml } from '../lib/parser';
 import { getTTS } from '../lib/tts';
+import { getLang, t } from '../lib/i18n';
 import { navigate } from '../router';
 
 const TTS_BLOCK_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, li, blockquote, pre';
@@ -12,11 +13,11 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
   if (!doc) {
     root.innerHTML = `
       <header class="topbar">
-        <button class="btn btn--ghost btn--icon" data-action="back" aria-label="ライブラリへ戻る"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
-        <h1 class="topbar__title">見つかりません</h1>
+        <button class="btn btn--ghost btn--icon" data-action="back" aria-label="${t('reader.back')}"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
+        <h1 class="topbar__title">${t('reader.notFound.title')}</h1>
       </header>
       <main class="reader-missing">
-        <p>ID ${id} のドキュメントが見つかりませんでした。</p>
+        <p>${t('reader.notFound.body', { id })}</p>
       </main>
     `;
     bindBack(root);
@@ -28,35 +29,35 @@ export async function renderReader(root: HTMLElement, id: number): Promise<void>
 
   root.innerHTML = `
     <header class="topbar">
-      <button class="btn btn--ghost btn--icon" data-action="back" aria-label="ライブラリへ戻る"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
+      <button class="btn btn--ghost btn--icon" data-action="back" aria-label="${t('reader.back')}"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
       <h1 class="topbar__title topbar__title--small">${escapeHtml(doc.title)}</h1>
       <div class="topbar__actions">
-        <button class="btn btn--ghost btn--icon topbar__star${doc.starred ? ' topbar__star--on' : ''}" data-action="toggle-star" aria-label="${doc.starred ? 'スターを外す' : 'スターを付ける'}" aria-pressed="${!!doc.starred}"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="${doc.starred ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
-        <button class="btn btn--ghost btn--icon" data-action="toggle-settings" aria-label="設定"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        <button class="btn btn--ghost btn--icon topbar__star${doc.starred ? ' topbar__star--on' : ''}" data-action="toggle-star" aria-label="${doc.starred ? t('doc.star.remove') : t('doc.star.add')}" aria-pressed="${!!doc.starred}"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="${doc.starred ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
+        <button class="btn btn--ghost btn--icon" data-action="toggle-settings" aria-label="${t('common.settings')}"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       </div>
     </header>
 
     <main class="reader">
       <article class="article" itemscope itemtype="https://schema.org/Article">
-        <h1 class="article__title" contenteditable="true" spellcheck="false" role="textbox" aria-label="タイトル (編集可能)">${escapeHtml(doc.title)}</h1>
+        <h1 class="article__title" contenteditable="true" spellcheck="false" role="textbox" aria-label="${t('reader.title.aria')}">${escapeHtml(doc.title)}</h1>
         <div class="article__body">${html}</div>
       </article>
     </main>
 
-    <aside class="player" aria-label="読み上げプレイヤー">
+    <aside class="player" aria-label="${t('reader.player.aria')}">
       <div class="player__row">
-        <button class="player__btn" data-action="play" aria-label="再生"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
-        <button class="player__btn" data-action="pause" aria-label="一時停止" hidden><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
-        <button class="player__btn" data-action="resume" aria-label="再開" hidden><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
-        <button class="player__btn" data-action="stop" aria-label="停止"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"/></svg></button>
+        <button class="player__btn" data-action="play" aria-label="${t('reader.play')}"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+        <button class="player__btn" data-action="pause" aria-label="${t('reader.pause')}" hidden><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+        <button class="player__btn" data-action="resume" aria-label="${t('reader.resume')}" hidden><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+        <button class="player__btn" data-action="stop" aria-label="${t('reader.stop')}"><svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"/></svg></button>
         <label class="player__rate">
-          速度
+          ${t('reader.rate')}
           <input type="range" id="rate" min="0.5" max="2.0" step="0.1" />
           <span id="rate-val"></span>
         </label>
         <label class="player__voice-label">
-          音声:
-          <select id="voice" class="player__voice" aria-label="音声"></select>
+          ${t('reader.voice.label')}
+          <select id="voice" class="player__voice" aria-label="${t('reader.voice.aria')}"></select>
         </label>
       </div>
       <div class="player__status" id="player-status" aria-live="polite"></div>
@@ -79,7 +80,7 @@ function bindStarToggle(root: HTMLElement, id: number, initial: boolean) {
     await setStarred(id, starred);
     btn.classList.toggle('topbar__star--on', starred);
     btn.setAttribute('aria-pressed', String(starred));
-    btn.setAttribute('aria-label', starred ? 'スターを外す' : 'スターを付ける');
+    btn.setAttribute('aria-label', starred ? t('doc.star.remove') : t('doc.star.add'));
     const svg = btn.querySelector('svg');
     if (svg) svg.setAttribute('fill', starred ? 'currentColor' : 'none');
   });
@@ -204,8 +205,8 @@ function bindBlockActions(
     // テンプレートリテラルのインデントを入れない (white-space: pre を継承する祖先で
     // 余分なテキストノードとして可視化されるのを避ける)
     actions.innerHTML =
-      `<button type="button" class="block-actions__btn block-actions__btn--copy" data-paragraph-action="copy" aria-label="段落をコピー">${COPY_SVG}</button>` +
-      `<button type="button" class="block-actions__btn block-actions__btn--bookmark" data-paragraph-action="bookmark" aria-label="${isBookmarked ? 'しおりを外す' : 'しおりを付ける'}" aria-pressed="${isBookmarked}">${isBookmarked ? BOOKMARK_SVG_FILLED : BOOKMARK_SVG_OUTLINE}</button>`;
+      `<button type="button" class="block-actions__btn block-actions__btn--copy" data-paragraph-action="copy" aria-label="${t('reader.copy')}">${COPY_SVG}</button>` +
+      `<button type="button" class="block-actions__btn block-actions__btn--bookmark" data-paragraph-action="bookmark" aria-label="${isBookmarked ? t('reader.bookmark.remove') : t('reader.bookmark.add')}" aria-pressed="${isBookmarked}">${isBookmarked ? BOOKMARK_SVG_FILLED : BOOKMARK_SVG_OUTLINE}</button>`;
     block.appendChild(actions);
   });
 
@@ -368,7 +369,7 @@ function bindBlockActions(
         if (next) bookmarks.set(idx, { index: idx, addedAt: Date.now() });
         else bookmarks.delete(idx);
         btn.setAttribute('aria-pressed', String(next));
-        btn.setAttribute('aria-label', next ? 'しおりを外す' : 'しおりを付ける');
+        btn.setAttribute('aria-label', next ? t('reader.bookmark.remove') : t('reader.bookmark.add'));
         btn.innerHTML = next ? BOOKMARK_SVG_FILLED : BOOKMARK_SVG_OUTLINE;
         block.classList.toggle('is-bookmarked', next);
         try {
@@ -392,14 +393,14 @@ function bindBlockActions(
         } else {
           btn.classList.remove('block-actions__btn--copied');
           btn.classList.add('block-actions__btn--copy-failed');
-          btn.setAttribute('aria-label', 'コピーに失敗');
+          btn.setAttribute('aria-label', t('reader.copyFailed'));
           closeAfter = false;
         }
         const timer = window.setTimeout(() => {
           btn.classList.remove('block-actions__btn--copied');
           btn.classList.remove('block-actions__btn--copy-failed');
           btn.innerHTML = COPY_SVG;
-          btn.setAttribute('aria-label', '段落をコピー');
+          btn.setAttribute('aria-label', t('reader.copy'));
           delete btn.dataset.copyTimerId;
         }, 1100);
         btn.dataset.copyTimerId = String(timer);
@@ -454,13 +455,14 @@ function bindReaderEvents(root: HTMLElement, doc: DocRecord) {
   function refreshVoices() {
     const voices = controller.getVoices();
     const current = controller.currentState.voiceURI;
-    const jaFirst = [
-      ...voices.filter((v) => v.lang.startsWith('ja')),
-      ...voices.filter((v) => !v.lang.startsWith('ja')),
+    const uiLang = getLang();
+    const langFirst = [
+      ...voices.filter((v) => v.lang.startsWith(uiLang)),
+      ...voices.filter((v) => !v.lang.startsWith(uiLang)),
     ];
     voiceSel.innerHTML =
-      `<option value="">自動 (端末既定)</option>` +
-      jaFirst
+      `<option value="">${t('reader.voice.auto')}</option>` +
+      langFirst
         .map(
           (v) =>
             `<option value="${escapeHtml(v.voiceURI)}" ${v.voiceURI === current ? 'selected' : ''}>${escapeHtml(v.name)} (${v.lang})</option>`,
@@ -498,9 +500,9 @@ function bindReaderEvents(root: HTMLElement, doc: DocRecord) {
   controller.subscribe((s) => {
     statusEl.textContent =
       s.status === 'playing'
-        ? `再生中… (${s.cursor + 1}/${s.total})`
+        ? t('reader.playing', { cursor: s.cursor + 1, total: s.total })
         : s.status === 'paused'
-          ? `一時停止 (${s.cursor + 1}/${s.total})`
+          ? t('reader.paused', { cursor: s.cursor + 1, total: s.total })
           : '';
     playBtn.hidden = s.status !== 'idle';
     pauseBtn.hidden = s.status !== 'playing';

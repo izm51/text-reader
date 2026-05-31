@@ -1,5 +1,6 @@
 import { currentParams } from './router';
 import { initTheme, applyReadingPrefs } from './lib/theme';
+import { applyLang } from './lib/i18n';
 import { clearArticleMeta } from './lib/meta';
 import { renderLibrary } from './views/library';
 import { renderReader } from './views/reader';
@@ -25,6 +26,7 @@ export async function renderApp(): Promise<void> {
   if (!initialized) {
     initTheme();
     applyReadingPrefs();
+    applyLang();
     initialized = true;
   }
 
